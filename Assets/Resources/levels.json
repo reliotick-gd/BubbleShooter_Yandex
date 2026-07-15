@@ -1,0 +1,598 @@
+{
+  "levels": [
+    {
+      "rows": 4,
+      "colors": 3,
+      "shots": 30,
+      "obstacles": []
+    },
+    {
+      "rows": 4,
+      "colors": 3,
+      "shots": 28,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 6,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 4,
+      "colors": 3,
+      "shots": 28,
+      "obstacles": [
+        {
+          "q": 3,
+          "r": 6,
+          "type": 0
+        },
+        {
+          "q": 7,
+          "r": 6,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 5,
+      "colors": 3,
+      "shots": 26,
+      "obstacles": [
+        {
+          "q": 2,
+          "r": 7,
+          "type": 0
+        },
+        {
+          "q": 7,
+          "r": 7,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 5,
+      "colors": 3,
+      "shots": 28,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 6,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 5,
+      "colors": 4,
+      "shots": 27,
+      "obstacles": [
+        {
+          "q": 3,
+          "r": 6,
+          "type": 0
+        },
+        {
+          "q": 7,
+          "r": 6,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 5,
+      "colors": 4,
+      "shots": 26,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 6,
+          "type": 0
+        },
+        {
+          "q": 3,
+          "r": 7,
+          "type": 0
+        },
+        {
+          "q": 6,
+          "r": 7,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 5,
+      "colors": 4,
+      "shots": 28,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 6,
+          "type": 1
+        }
+      ]
+    },
+    {
+      "rows": 5,
+      "colors": 4,
+      "shots": 26,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 6,
+          "type": 1
+        },
+        {
+          "q": 2,
+          "r": 7,
+          "type": 0
+        },
+        {
+          "q": 7,
+          "r": 7,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 4,
+      "shots": 26,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 3,
+          "r": 7,
+          "type": 1
+        },
+        {
+          "q": 6,
+          "r": 7,
+          "type": 1
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 5,
+      "shots": 27,
+      "obstacles": [
+        {
+          "q": 3,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 7,
+          "r": 8,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 5,
+      "shots": 26,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 2,
+          "r": 7,
+          "type": 1
+        },
+        {
+          "q": 7,
+          "r": 7,
+          "type": 1
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 5,
+      "shots": 25,
+      "obstacles": [
+        {
+          "q": 2,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 8,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 3,
+          "r": 7,
+          "type": 1
+        },
+        {
+          "q": 6,
+          "r": 7,
+          "type": 1
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 5,
+      "shots": 27,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 8,
+          "type": 2
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 5,
+      "shots": 26,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 8,
+          "type": 2
+        },
+        {
+          "q": 2,
+          "r": 7,
+          "type": 0
+        },
+        {
+          "q": 7,
+          "r": 7,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 5,
+      "shots": 25,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 8,
+          "type": 2
+        },
+        {
+          "q": 3,
+          "r": 7,
+          "type": 1
+        },
+        {
+          "q": 6,
+          "r": 7,
+          "type": 1
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 6,
+      "shots": 27,
+      "obstacles": [
+        {
+          "q": 3,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 7,
+          "r": 8,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 7,
+      "colors": 6,
+      "shots": 25,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 8,
+          "type": 2
+        },
+        {
+          "q": 3,
+          "r": 9,
+          "type": 1
+        },
+        {
+          "q": 6,
+          "r": 9,
+          "type": 1
+        }
+      ]
+    },
+    {
+      "rows": 7,
+      "colors": 6,
+      "shots": 25,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 8,
+          "type": 2
+        },
+        {
+          "q": 2,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 8,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 3,
+          "r": 9,
+          "type": 1
+        },
+        {
+          "q": 6,
+          "r": 9,
+          "type": 1
+        }
+      ]
+    },
+    {
+      "rows": 7,
+      "colors": 6,
+      "shots": 24,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 8,
+          "type": 2
+        },
+        {
+          "q": 2,
+          "r": 8,
+          "type": 1
+        },
+        {
+          "q": 8,
+          "r": 8,
+          "type": 1
+        },
+        {
+          "q": 2,
+          "r": 9,
+          "type": 0
+        },
+        {
+          "q": 7,
+          "r": 9,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 6,
+      "shots": 26,
+      "obstacles": [
+        {
+          "q": 3,
+          "r": 7,
+          "type": 0
+        },
+        {
+          "q": 6,
+          "r": 7,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 6,
+      "shots": 26,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 8,
+          "type": 2
+        },
+        {
+          "q": 3,
+          "r": 7,
+          "type": 0
+        },
+        {
+          "q": 6,
+          "r": 7,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 6,
+      "shots": 28,
+      "obstacles": [
+        {
+          "q": 3,
+          "r": 8,
+          "type": 1
+        },
+        {
+          "q": 7,
+          "r": 8,
+          "type": 1
+        }
+      ]
+    },
+    {
+      "rows": 7,
+      "colors": 6,
+      "shots": 26,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 8,
+          "type": 1
+        },
+        {
+          "q": 3,
+          "r": 9,
+          "type": 0
+        },
+        {
+          "q": 6,
+          "r": 9,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 7,
+      "colors": 6,
+      "shots": 24,
+      "obstacles": [
+        {
+          "q": 2,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 8,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 3,
+          "r": 9,
+          "type": 1
+        },
+        {
+          "q": 6,
+          "r": 9,
+          "type": 1
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 7,
+      "shots": 28,
+      "obstacles": [
+        {
+          "q": 3,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 7,
+          "r": 8,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 7,
+      "shots": 26,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 8,
+          "type": 2
+        },
+        {
+          "q": 2,
+          "r": 7,
+          "type": 0
+        },
+        {
+          "q": 7,
+          "r": 7,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 6,
+      "colors": 7,
+      "shots": 27,
+      "obstacles": [
+        {
+          "q": 2,
+          "r": 8,
+          "type": 1
+        },
+        {
+          "q": 8,
+          "r": 8,
+          "type": 1
+        }
+      ]
+    },
+    {
+      "rows": 7,
+      "colors": 7,
+      "shots": 25,
+      "obstacles": [
+        {
+          "q": 5,
+          "r": 8,
+          "type": 1
+        },
+        {
+          "q": 2,
+          "r": 9,
+          "type": 0
+        },
+        {
+          "q": 7,
+          "r": 9,
+          "type": 0
+        }
+      ]
+    },
+    {
+      "rows": 7,
+      "colors": 7,
+      "shots": 24,
+      "obstacles": [
+        {
+          "q": 2,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 8,
+          "r": 8,
+          "type": 0
+        },
+        {
+          "q": 3,
+          "r": 9,
+          "type": 1
+        },
+        {
+          "q": 6,
+          "r": 9,
+          "type": 1
+        }
+      ]
+    }
+  ]
+}
