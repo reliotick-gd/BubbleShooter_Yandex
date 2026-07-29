@@ -90,7 +90,11 @@ namespace CozyAnimalTown
             Color col = ComboColors[clampedIdx];
             _label.color = col;
             int strIdx   = Mathf.Clamp(combo - 2, 0, ComboStr.Length - 1);
-            _label.text  = combo - 2 < ComboStr.Length ? ComboStr[strIdx] : $"COMBO x{combo}!!!";
+            // Комбо 14+ выходит за таблицу — собираем строку тем же локализованным словом,
+            // иначе русскому игроку прилетало английское «COMBO» (п.8.2.3).
+            _label.text  = combo - 2 < ComboStr.Length
+                ? ComboStr[strIdx]
+                : $"{Loc.T("COMBO", "КОМБО")} x{combo}!!!";
 
             var rt = (RectTransform)_label.rectTransform;
             float t = 0f;

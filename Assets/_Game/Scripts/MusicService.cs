@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 namespace CozyAnimalTown
@@ -36,8 +37,50 @@ namespace CozyAnimalTown
 
             // готовый трек из Resources/Music/bg_music — если положили; иначе процедурный луп
             var file = Resources.Load<AudioClip>("Music/bg_music");
-            _src.clip = file != null ? file : BuildLoop();
-            _src.Play();
+            if (file != null)
+            {
+                _src.clip = file;
+                go.AddComponent<Loader>().Begin(file, _src);   // Play() — после декодирования
+            }
+            else
+            {
+                _src.clip = BuildLoop();
+                _src.Play();
+            }
+        }
+
+        /// <summary>
+        /// Ждёт декодирования трека и только потом стартует музыку.
+        ///
+        /// ЗАЧЕМ: Load Type у bg_music.mp3 обязан быть Decompress On Load — иначе Unity WebGL
+        /// (Audio.js, JS_Sound_Load) для клипов >128 КБ в НЕ-Chromium браузерах создаёт настоящий
+        /// HTML-элемент `new Audio()` через createMediaElementSource, и WebKit поднимает системный
+        /// плеер в «Пункте управления» iOS. Это нарушение п.1.6.1.6 требований Яндекса
+        /// («в любых браузерах не отображается системный плеер, вызываемый игрой») — по нему
+        /// игру уже отклоняли. С Decompress On Load клип идёт через decodeAudioData →
+        /// AudioBufferSourceNode, медиа-элемент не создаётся вообще.
+        ///
+        /// ПОБОЧНЫЙ ЭФФЕКТ: decodeAudioData асинхронный, и Play() сразу после Resources.Load
+        /// дал бы source node с пустым буфером — тишину до конца сессии (Audio.js только пишет
+        /// в консоль «Trying to play sound which is not loaded»). Отсюда это ожидание.
+        /// </summary>
+        class Loader : MonoBehaviour
+        {
+            public void Begin(AudioClip clip, AudioSource src) => StartCoroutine(WaitAndPlay(clip, src));
+
+            static IEnumerator WaitAndPlay(AudioClip clip, AudioSource src)
+            {
+                if (clip.loadState != AudioDataLoadState.Loaded) clip.LoadAudioData();
+
+                // realtime — таймер не должен замирать при timeScale=0 (реклама/пауза).
+                float deadline = Time.realtimeSinceStartup + 10f;
+                while (clip.loadState == AudioDataLoadState.Loading && Time.realtimeSinceStartup < deadline)
+                    yield return null;
+
+                // Не дождались/ошибка декодирования — играем процедурный луп, тишины не будет.
+                if (clip.loadState != AudioDataLoadState.Loaded) src.clip = BuildLoop();
+                src.Play();
+            }
         }
 
         // Пэд фазо-выровнен, мелодия затухает до границы — поэтому петля бесшовна

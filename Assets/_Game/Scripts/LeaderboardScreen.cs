@@ -154,9 +154,11 @@ namespace CozyAnimalTown
             // гостю — подсказка, почему его нет в таблице
             if (data.userRank <= 0)
             {
+                // Без упоминания чужого товарного знака: модерация сняла черновик по п.3.5
+                // именно за строку «Войди в Яндекс…» на этом экране.
                 var hint = UiKit.Label(_content, Loc.T(
-                        "Sign in to Yandex to join the board",
-                        "Войди в Яндекс, чтобы попасть в таблицу"),
+                        "Sign in to join the leaderboard",
+                        "Войди в аккаунт, чтобы попасть в таблицу"),
                     30, TextAnchor.MiddleCenter, TxtGrey);
                 UiKit.Anchor(hint.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                     new Vector2(0f, y - 40f), new Vector2(940f, 60f));

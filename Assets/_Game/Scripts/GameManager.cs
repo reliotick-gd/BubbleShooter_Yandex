@@ -49,6 +49,8 @@ namespace CozyAnimalTown
         float _adBusyDeadline;    // страховка: SDK не прислал ни одного колбэка
         string _adPlacement = "";  // плейсмент текущего rewarded (для аналитики/таймаута)
         bool _adShownSent;
+        bool _adOfferOpen;         // открыт диалог «пополнить бонус за рекламу» (п.4.5.1)
+        int  _adOfferSpecialId = -1;
         float _activePlaySec;     // честный playtime: без рекламы и фоновой вкладки
         int  _pendingCloudLevel;  // облако пришло на тронутом уровне → применим на след. старте
 
@@ -66,6 +68,13 @@ namespace CozyAnimalTown
         public const int BonusStart = 10;                // выдаётся при разблокировке
         public const int RainbowUnlockLevel = 3;
         public const int BombUnlockLevel    = 7;
+
+        // Размеры наград за rewarded вынесены в константы: их дословно называют кнопки и
+        // диалог подтверждения. п.4.5.1 Яндекса требует, чтобы игрок ЗАРАНЕЕ видел, что
+        // именно и сколько он получит — а текст не должен разъезжаться с реальной выдачей.
+        public const int RefillAmount      = 3;   // зарядов бомбы/радуги за ролик
+        public const int SecondChanceShots = 5;   // выстрелов за «Второй шанс»
+        public const int OverflowClearRows = 3;   // рядов снизу, если проиграл по переполнению
         const string KeyBomb    = "cat_bomb";
         const string KeyRainbow = "cat_rainbow";
         int bombCharges, rainbowCharges;
@@ -84,8 +93,8 @@ namespace CozyAnimalTown
         public bool IsPaused     => _paused;
 
         /// <summary>Модальный оверлей открыт (пауза/титул/лидерборд/итоги/реклама) — пушка не стреляет «сквозь».</summary>
-        public bool InputBlocked => _paused || _titleOpen || _lbOpen || _onboarding || YandexBridge.AdShowing
-            || State == GameState.Win || State == GameState.Lose;
+        public bool InputBlocked => _paused || _titleOpen || _lbOpen || _onboarding || _adOfferOpen
+            || YandexBridge.AdShowing || State == GameState.Win || State == GameState.Lose;
 
         /// <summary>Стрелка «назад»: показать вступительный экран поверх игры.
         /// Выход в «меню» — естественная пауза, здесь тоже показываем interstitial.</summary>
@@ -459,11 +468,36 @@ namespace CozyAnimalTown
             else RefillBonus(GameConfig.RainbowId);
         }
 
+        /// <summary>
+        /// Тап по пустому бонусу. Ролик отсюда НЕ стартует: сначала диалог, который называет
+        /// награду и её количество, — требование п.4.5.1 Яндекса (по нему черновик отклоняли:
+        /// «не указано количество получаемой награды»).
+        /// </summary>
         void RefillBonus(int specialId)
         {
-            if (_adBusy) return;   // rewarded уже в полёте — дабл-тап не шлёт второй запрос
+            if (_adBusy || _adOfferOpen) return;   // rewarded уже в полёте / диалог уже открыт
             Analytics.BonusRefillOffer(specialId == GameConfig.BombId ? "bomb" : "rainbow", currentLevel);
-            BeginRewarded(specialId == GameConfig.BombId ? "refill_bomb" : "refill_rainbow");
+            _adOfferOpen = true;
+            _adOfferSpecialId = specialId;
+            hud.ShowAdOffer(specialId);
+        }
+
+        /// <summary>Кнопка «Смотреть рекламу» в диалоге — единственный вход в rewarded за бонус.</summary>
+        public void ConfirmAdOffer()
+        {
+            if (!_adOfferOpen) return;
+            int id = _adOfferSpecialId;
+            CloseAdOffer();
+            BeginRewarded(id == GameConfig.BombId ? "refill_bomb" : "refill_rainbow");
+        }
+
+        public void CancelAdOffer() => CloseAdOffer();
+
+        void CloseAdOffer()
+        {
+            _adOfferOpen = false;
+            _adOfferSpecialId = -1;
+            hud.HideAdOffer();
         }
 
         public void SetPaused(bool value)
@@ -557,11 +591,11 @@ namespace CozyAnimalTown
                     _secondChanceCount++;       // до 2 воскрешений на попытку
                     if (_loseByOverflow)
                     {
-                        board.ClearBottomRows(3);
+                        board.ClearBottomRows(OverflowClearRows);
                         _loseByOverflow = false;
-                        if (shotsLeft <= 0) shotsLeft = 5;
+                        if (shotsLeft <= 0) shotsLeft = SecondChanceShots;
                     }
-                    else shotsLeft += 5;
+                    else shotsLeft += SecondChanceShots;
                     State = GameState.Aiming;
                     YandexBridge.GameplayStart();
                     shooter.Reload();
@@ -580,16 +614,16 @@ namespace CozyAnimalTown
                     });
                     break;
 
-                // Пополнение за rewarded — по 3 заряда (стартовые 10 при разблокировке;
-                // +3 за 30-сек ролик — осмысленная сделка, +1 конвертил плохо).
+                // Пополнение за rewarded — по RefillAmount зарядов (стартовые 10 при
+                // разблокировке; +3 за 30-сек ролик — осмысленная сделка, +1 конвертил плохо).
                 case "refill_bomb":
-                    bombCharges += 3;
+                    bombCharges += RefillAmount;
                     PlayerPrefs.SetInt(KeyBomb, bombCharges);
                     PlayerPrefs.Save();
                     break;
 
                 case "refill_rainbow":
-                    rainbowCharges += 3;
+                    rainbowCharges += RefillAmount;
                     PlayerPrefs.SetInt(KeyRainbow, rainbowCharges);
                     PlayerPrefs.Save();
                     break;

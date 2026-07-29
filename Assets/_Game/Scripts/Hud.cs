@@ -12,6 +12,9 @@ namespace CozyAnimalTown
         RectTransform root;
 
         GameObject resultRoot, winGroup, loseGroup, pauseRoot;
+        GameObject adOfferRoot;              // диалог «посмотреть рекламу за бонус» (п.4.5.1)
+        TMP_Text   _adOfferTitle, _adOfferReward;
+        Image      _adOfferIcon;
         TMP_Text titleText, _loseCount;
         Image _soundIcon;
         GameObject bombAd, rainbowAd;
@@ -78,8 +81,10 @@ namespace CozyAnimalTown
             BuildBonusBar();
             BuildResultPanel();
             BuildPausePanel();
+            BuildAdOfferPanel();
             resultRoot.SetActive(false);
             pauseRoot.SetActive(false);
+            adOfferRoot.SetActive(false);
         }
 
         void BuildTopBar()
@@ -179,10 +184,14 @@ namespace CozyAnimalTown
 
             // Иконку бонуса под рекламным бейджем не прячем — игрок должен видеть, какой
             // бонус пополняет; клик проходит сквозь бейдж на кнопку под ним.
+            // п.4.5.1: бейдж называет количество награды («▶ +3»), а полный текст
+            // («Посмотри рекламу и получи +3 радуги») — в диалоге подтверждения; ролик
+            // стартует только оттуда. Раньше здесь был голый ▶ — за это и сняли черновик.
             var ad = UiKit.Panel(holder, GreenAd, false);
             UiKit.Anchor(ad.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
-                new Vector2(10f, 6f), new Vector2(92f, 54f));
-            var adTxt = UiKit.Label(ad.transform, UiSymbols.Play, 30, TextAnchor.MiddleCenter, White);
+                new Vector2(2f, 8f), new Vector2(118f, 54f));
+            var adTxt = UiKit.Label(ad.transform, AdLoc.RefillBadge, 28, TextAnchor.MiddleCenter, White);
+            adTxt.fontStyle = FontStyles.Bold;
             UiKit.Stretch(adTxt.rectTransform);
             adBadge = ad.gameObject;
 
@@ -262,9 +271,13 @@ namespace CozyAnimalTown
             UiKit.Anchor(_loseCount.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 0.5f),
                 new Vector2(-42f, -432f), new Vector2(340f, 64f));
 
-            var cont = UiKit.CandyBtn(loseGroup.transform, Loc.T("Second chance", "Второй шанс"), 52, LoseBlue, White,
+            // п.4.5.1: в подписи названо количество награды («+5 выстрелов»), не только действие.
+            var cont = UiKit.CandyBtn(loseGroup.transform, AdLoc.SecondChanceShotsBtn, 44, LoseBlue, White,
                 () => gm.WatchAdForSecondChance());
             _loseContLabel = cont.GetComponentInChildren<TMP_Text>();
+            _loseContLabel.enableAutoSizing = true;
+            _loseContLabel.fontSizeMin = 28; _loseContLabel.fontSizeMax = 46;
+            _loseContLabel.lineSpacing = -12f;
             ApplyOutline(_loseContLabel, new Color(0.16f, 0.30f, 0.52f), 0.16f);
             var contRt = (RectTransform)cont.transform;
             UiKit.Anchor(contRt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
@@ -274,9 +287,13 @@ namespace CozyAnimalTown
             AddAdBadge(cont.transform);
 
             // Зелёный, не синий как «Второй шанс» — это «продвижение», а не «спасение».
-            var skip = UiKit.CandyBtn(loseGroup.transform, Loc.T("Skip level", "Пропустить уровень"), 46, Green, White,
+            var skip = UiKit.CandyBtn(loseGroup.transform, AdLoc.SkipLevelBtn, 42, Green, White,
                 () => gm.WatchAdForSkipLevel());
-            ApplyOutline(skip.GetComponentInChildren<TMP_Text>(), new Color(0.16f, 0.42f, 0.24f), 0.16f);
+            var skipLabel = skip.GetComponentInChildren<TMP_Text>();
+            skipLabel.enableAutoSizing = true;
+            skipLabel.fontSizeMin = 26; skipLabel.fontSizeMax = 42;
+            skipLabel.lineSpacing = -12f;
+            ApplyOutline(skipLabel, new Color(0.16f, 0.42f, 0.24f), 0.16f);
             var skipRt = (RectTransform)skip.transform;
             UiKit.Anchor(skipRt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                 new Vector2(0f, 316f), new Vector2(680f, 150f));
@@ -324,14 +341,78 @@ namespace CozyAnimalTown
             t.fontMaterial.SetColor(TMPro.ShaderUtilities.ID_OutlineColor, col);
         }
 
+        // RU-вариант раньше был пустой строкой — бейдж оставался голым треугольником, то есть
+        // ровно та же претензия п.4.5.1, что и по кнопке бонуса. Теперь слово есть в обоих языках.
         void AddAdBadge(Transform btn)
         {
             var badge = UiKit.Panel(btn, GreenAd, false);
             UiKit.Anchor(badge.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
-                new Vector2(-46f, 6f), new Vector2(104f, 48f));
-            var t = UiKit.Label(badge.transform, UiSymbols.Play + Loc.T(" AD", ""), 22, TextAnchor.MiddleCenter, White);
+                new Vector2(-100f, 8f), new Vector2(184f, 50f));
+            var t = UiKit.Label(badge.transform, UiSymbols.Play + " " + AdLoc.AdWord, 24, TextAnchor.MiddleCenter, White);
             t.fontStyle = FontStyles.Bold;
             UiKit.Stretch(t.rectTransform);
+        }
+
+        /// <summary>
+        /// Диалог подтверждения перед rewarded за пополнение бонуса. Требование Яндекса
+        /// п.4.5.1: игрок должен ДО показа понимать, что сейчас будет реклама и что именно
+        /// он за неё получит. По тапу в иконку пустого бонуса ролик больше не стартует сам —
+        /// сначала этот экран, ролик уходит только из кнопки «Смотреть рекламу».
+        /// </summary>
+        void BuildAdOfferPanel()
+        {
+            adOfferRoot = new GameObject("AdOffer", typeof(RectTransform));
+            adOfferRoot.transform.SetParent(root, false);
+            UiKit.Stretch((RectTransform)adOfferRoot.transform);
+            var dim = UiKit.Panel(adOfferRoot.transform, new Color(0.07f, 0.06f, 0.09f, 0.72f), true);
+            UiKit.Stretch(dim.rectTransform);
+
+            var box = Card(adOfferRoot.transform, new Vector2(0f, 0f), new Vector2(780f, 640f));
+
+            _adOfferTitle = UiKit.Label(box.transform, "", 46, TextAnchor.MiddleCenter, Brown);
+            _adOfferTitle.fontStyle = FontStyles.Bold;
+            UiKit.Anchor(_adOfferTitle.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -72f), new Vector2(700f, 70f));
+
+            // Иконка того самого бонуса — игрок видит, что именно пополняет.
+            var iconGo = new GameObject("Icon", typeof(RectTransform));
+            iconGo.transform.SetParent(box.transform, false);
+            _adOfferIcon = iconGo.AddComponent<Image>();
+            _adOfferIcon.preserveAspect = true; _adOfferIcon.raycastTarget = false;
+            UiKit.Anchor(_adOfferIcon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -200f), new Vector2(150f, 150f));
+
+            _adOfferReward = UiKit.Label(box.transform, "", 34, TextAnchor.MiddleCenter, BrownSoft);
+            _adOfferReward.enableAutoSizing = true;
+            _adOfferReward.fontSizeMin = 26; _adOfferReward.fontSizeMax = 34;
+            UiKit.Anchor(_adOfferReward.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -320f), new Vector2(680f, 110f));
+
+            var watch = UiKit.CandyBtn(box.transform, UiSymbols.Play + " " + AdLoc.WatchAd, 40, GreenAd, White,
+                () => gm.ConfirmAdOffer());
+            var watchRt = (RectTransform)watch.transform;
+            UiKit.Anchor(watchRt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0f, 150f), new Vector2(660f, 132f));
+            UiKit.AddShadow(watchRt, 12f, -7f);
+
+            SoftButton(box.transform, AdLoc.Cancel, new Color(0.93f, 0.90f, 0.85f), BrownSoft,
+                new Vector2(0f, 46f), new Vector2(480f, 84f), () => gm.CancelAdOffer());
+        }
+
+        /// <summary>Показывает диалог пополнения для конкретного бонуса (радуга/бомба).</summary>
+        public void ShowAdOffer(int specialId)
+        {
+            bool bomb = specialId == GameConfig.BombId;
+            _adOfferTitle.text  = bomb ? AdLoc.BombTitle  : AdLoc.RainbowTitle;
+            _adOfferReward.text = bomb ? AdLoc.BombReward : AdLoc.RainbowReward;
+            _adOfferIcon.sprite = AnimalSpriteFactory.Get(specialId, Color.white);
+            adOfferRoot.SetActive(true);
+            adOfferRoot.transform.SetAsLastSibling();   // поверх остальных панелей HUD
+        }
+
+        public void HideAdOffer()
+        {
+            if (adOfferRoot != null) adOfferRoot.SetActive(false);
         }
 
         void BuildPausePanel()
@@ -704,6 +785,10 @@ namespace CozyAnimalTown
                         ? Loc.T("The bubbles reached the edge!", "Шарики дошли до края!")
                         : Loc.T("Out of shots!", "Выстрелы кончились!");
                     _loseCount.text = Loc.T("Left:", "Осталось:") + "  <color=#FF4747>" + gm.BubbleCount + "</color>";
+                    // Награда за rewarded зависит от причины проигрыша — подпись кнопки
+                    // обязана называть именно то, что выдадут (п.4.5.1).
+                    if (_loseContLabel)
+                        _loseContLabel.text = overflow ? AdLoc.SecondChanceClearBtn : AdLoc.SecondChanceShotsBtn;
                     // Один слот кнопки: «Второй шанс» (до 2 раз), затем «Пропустить уровень» —
                     // видна ровно одна из двух, вместе с тенью.
                     bool sc   = gm.SecondChanceAvailable;

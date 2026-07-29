@@ -20,6 +20,12 @@ namespace CozyAnimalTown
             const int SaveVer = 5;
             if (PlayerPrefs.GetInt("cat_save_ver", 0) < SaveVer)
             {
+                // Есть ли вообще что мигрировать. На чистом устройстве prefs пусты — это
+                // не миграция, а первый заход игрока с другого девайса, и облако надо
+                // СМЕРЖИТЬ. Без этой проверки cat_cloud_wipe взводился на каждой новой
+                // машине/в каждом новом браузере и затирал облачный прогресс уровнем 1.
+                bool hadLocalSave = PlayerPrefs.HasKey("cat_save_ver") || PlayerPrefs.HasKey("cat_level");
+
                 foreach (var k in new[] { "cat_level", "cat_bomb", "cat_rainbow",
                     "cat_onboarded", "cat_seen_ice", "cat_seen_slime", "cat_seen_rock",
                     "cat_endless_sent" })
@@ -27,7 +33,7 @@ namespace CozyAnimalTown
                 PlayerPrefs.SetInt("cat_save_ver", SaveVer);
                 PlayerPrefs.Save();
                 // облако тоже надо перезаписать, иначе мерж вернёт стёртый прогресс
-                CloudSave.MarkCloudWipe();
+                if (hadLocalSave) CloudSave.MarkCloudWipe();
             }
 
             // должно быть готово до первого текста

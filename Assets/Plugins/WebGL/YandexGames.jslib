@@ -77,12 +77,20 @@ mergeInto(LibraryManager.library, {
   // Синхронное чтение языка для Loc до постройки UI — index.html гарантирует
   // ysdk до старта Unity, поэтому язык уже доступен.
   YG_GetLang: function () {
-    var lang = 'en';
+    // Фолбэк на navigator.language — тот же, что у лоадера в index.html. Без него любой
+    // путь, где Unity стартует раньше ysdk (нет /sdk.js, таймаут init, отказ промиса,
+    // финальный setTimeout), давал русскому игроку русский лоадер и ПОЛНОСТЬЮ английскую
+    // игру: Loc защёлкивает язык один раз и переспросить его некому (п.8.2.3).
+    var lang = '';
     try {
       if (window.ysdk && window.ysdk.environment && window.ysdk.environment.i18n) {
-        lang = window.ysdk.environment.i18n.lang || 'en';
+        lang = window.ysdk.environment.i18n.lang || '';
       }
     } catch (e) { }
+    try { if (!lang) lang = navigator.language || navigator.userLanguage || ''; } catch (e) { }
+    // navigator.language отдаёт "ru-RU" — Loc сравнивает код точно ("ru"), поэтому режем регион.
+    lang = String(lang).toLowerCase().split('-')[0];
+    if (!lang) lang = 'en';
     var size = lengthBytesUTF8(lang) + 1;
     var buf = _malloc(size);
     stringToUTF8(lang, buf, size);
