@@ -49,8 +49,6 @@ namespace CozyAnimalTown
         float _adBusyDeadline;    // страховка: SDK не прислал ни одного колбэка
         string _adPlacement = "";  // плейсмент текущего rewarded (для аналитики/таймаута)
         bool _adShownSent;
-        bool _adOfferOpen;         // открыт диалог «пополнить бонус за рекламу» (п.4.5.1)
-        int  _adOfferSpecialId = -1;
         float _activePlaySec;     // честный playtime: без рекламы и фоновой вкладки
         int  _pendingCloudLevel;  // облако пришло на тронутом уровне → применим на след. старте
 
@@ -93,7 +91,7 @@ namespace CozyAnimalTown
         public bool IsPaused     => _paused;
 
         /// <summary>Модальный оверлей открыт (пауза/титул/лидерборд/итоги/реклама) — пушка не стреляет «сквозь».</summary>
-        public bool InputBlocked => _paused || _titleOpen || _lbOpen || _onboarding || _adOfferOpen
+        public bool InputBlocked => _paused || _titleOpen || _lbOpen || _onboarding
             || YandexBridge.AdShowing || State == GameState.Win || State == GameState.Lose;
 
         /// <summary>Стрелка «назад»: показать вступительный экран поверх игры.
@@ -469,35 +467,15 @@ namespace CozyAnimalTown
         }
 
         /// <summary>
-        /// Тап по пустому бонусу. Ролик отсюда НЕ стартует: сначала диалог, который называет
-        /// награду и её количество, — требование п.4.5.1 Яндекса (по нему черновик отклоняли:
-        /// «не указано количество получаемой награды»).
+        /// Тап по пустому бонусу — сразу rewarded. Что это ролик и что дадут RefillAmount
+        /// зарядов, игрок видит на самом бейдже кнопки («▶ Реклама +3», AdLoc.RefillBadge) —
+        /// этого требует п.4.5.1, и лишний диалог подтверждения только резал бы конверсию.
         /// </summary>
         void RefillBonus(int specialId)
         {
-            if (_adBusy || _adOfferOpen) return;   // rewarded уже в полёте / диалог уже открыт
+            if (_adBusy) return;   // rewarded уже в полёте — дабл-тап не шлёт второй запрос
             Analytics.BonusRefillOffer(specialId == GameConfig.BombId ? "bomb" : "rainbow", currentLevel);
-            _adOfferOpen = true;
-            _adOfferSpecialId = specialId;
-            hud.ShowAdOffer(specialId);
-        }
-
-        /// <summary>Кнопка «Смотреть рекламу» в диалоге — единственный вход в rewarded за бонус.</summary>
-        public void ConfirmAdOffer()
-        {
-            if (!_adOfferOpen) return;
-            int id = _adOfferSpecialId;
-            CloseAdOffer();
-            BeginRewarded(id == GameConfig.BombId ? "refill_bomb" : "refill_rainbow");
-        }
-
-        public void CancelAdOffer() => CloseAdOffer();
-
-        void CloseAdOffer()
-        {
-            _adOfferOpen = false;
-            _adOfferSpecialId = -1;
-            hud.HideAdOffer();
+            BeginRewarded(specialId == GameConfig.BombId ? "refill_bomb" : "refill_rainbow");
         }
 
         public void SetPaused(bool value)

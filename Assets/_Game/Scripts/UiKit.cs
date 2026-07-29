@@ -217,7 +217,45 @@ namespace CozyAnimalTown
             rt.pivot = target.pivot;
             rt.sizeDelta = target.sizeDelta + new Vector2(grow, grow);
             rt.anchoredPosition = target.anchoredPosition + new Vector2(0f, dy);
+
+            // Тень — сосед, а не ребёнок (ребёнок рисовался бы поверх). Значит при переносе
+            // элемента в другой рут (HUD уезжает в боковые панели на десктопе) она бы осталась
+            // висеть на старом месте. Пусть следит за хозяином сама.
+            var f = go.AddComponent<ShadowFollow>();
+            f.target = target; f.grow = grow; f.dy = dy;
             return img;
+        }
+
+        /// <summary>Показать/скрыть тень элемента (например, когда сама панель стала прозрачной).</summary>
+        public static void SetShadowVisible(RectTransform target, bool visible)
+        {
+            if (target == null) return;
+            // Ищем от корня канваса, а не от родителя: сразу после переноса элемента тень
+            // ещё висит на СТАРОМ руте — она переедет только в ближайшем LateUpdate.
+            foreach (var f in target.root.GetComponentsInChildren<ShadowFollow>(true))
+                if (f.target == target) f.GetComponent<Image>().enabled = visible;
+        }
+
+        /// <summary>Держит тень у хозяина: тот же родитель, якоря, размер и порядок отрисовки.</summary>
+        public class ShadowFollow : MonoBehaviour
+        {
+            public RectTransform target;
+            public float grow, dy;
+
+            void LateUpdate()
+            {
+                if (target == null) { Destroy(gameObject); return; }
+                var rt = (RectTransform)transform;
+                if (rt.parent != target.parent) rt.SetParent(target.parent, false);
+                // Только если тень уехала ВПЕРЁД хозяина — иначе индексы будут мигать каждый кадр.
+                if (rt.GetSiblingIndex() > target.GetSiblingIndex())
+                    rt.SetSiblingIndex(target.GetSiblingIndex());
+
+                rt.anchorMin = target.anchorMin; rt.anchorMax = target.anchorMax;
+                rt.pivot = target.pivot;
+                rt.sizeDelta = target.sizeDelta + new Vector2(grow, grow);
+                rt.anchoredPosition = target.anchoredPosition + new Vector2(0f, dy);
+            }
         }
 
         public static Canvas CreateCanvas(string name, int sortOrder)
@@ -245,6 +283,26 @@ namespace CozyAnimalTown
             var go = new GameObject("Column", typeof(RectTransform));
             go.transform.SetParent(canvas.transform, false);
             go.AddComponent<ColumnFitter>();
+            return (RectTransform)go.transform;
+        }
+
+        /// <summary>Рут с жёстким макетом 1080×1920 — для модалок (итоги, настройки,
+        /// диалог рекламы). Их вёрстка сделана под 9:16 и не должна ехать за раскладкой доски.</summary>
+        public static RectTransform ModalColumn(Canvas canvas)
+        {
+            var go = new GameObject("ModalColumn", typeof(RectTransform));
+            go.transform.SetParent(canvas.transform, false);
+            go.AddComponent<ColumnFitter>().fixedPortrait = true;
+            return (RectTransform)go.transform;
+        }
+
+        /// <summary>Полноэкранный рут в тех же единицах, что и Column — для HUD в полях
+        /// вокруг доски на десктопе (см. StageFitter).</summary>
+        public static RectTransform Stage(Canvas canvas)
+        {
+            var go = new GameObject("Stage", typeof(RectTransform));
+            go.transform.SetParent(canvas.transform, false);
+            go.AddComponent<StageFitter>();
             return (RectTransform)go.transform;
         }
 
@@ -388,6 +446,14 @@ namespace CozyAnimalTown
             rt.pivot = pivot;
             rt.sizeDelta = size;
             rt.anchoredPosition = anchoredPos;
+        }
+
+        /// <summary>Затемнение модалки на ВЕСЬ экран. Stretch растянул бы его только по
+        /// руту (колонка 9:16), и на десктопе тёмная вуаль была бы узкой полосой посередине.
+        /// Заведомо огромный прямоугольник перекрывает экран любой формы.</summary>
+        public static void FullScreenDim(RectTransform rt)
+        {
+            Anchor(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(8000f, 8000f));
         }
 
         public static void Stretch(RectTransform rt)

@@ -11,24 +11,15 @@ namespace CozyAnimalTown
     /// </summary>
     public static class AdLoc
     {
-        public static string AdWord  => Loc.T("AD", "Реклама");
-        public static string WatchAd => Loc.T("Watch ad", "Смотреть рекламу");
-        public static string Cancel  => Loc.T("Not now", "Не сейчас");
+        public static string AdWord => Loc.T("AD", "Реклама");
 
-        // Диалог пополнения бонуса: заголовок — что кончилось, строка награды — что дадут.
-        public static string RainbowTitle => Loc.T("Out of rainbows", "Радуги закончились");
-        public static string BombTitle    => Loc.T("Out of bombs", "Бомбы закончились");
-
-        public static string RainbowReward =>
-            Loc.T($"Watch an ad and get +{GameManager.RefillAmount} rainbow bubbles",
-                  $"Посмотри рекламу и получи +{GameManager.RefillAmount} радуги");
-
-        public static string BombReward =>
-            Loc.T($"Watch an ad and get +{GameManager.RefillAmount} bombs",
-                  $"Посмотри рекламу и получи +{GameManager.RefillAmount} бомбы");
-
-        /// <summary>Короткая подпись на самом бейдже у иконки бонуса: «▶ +3».</summary>
-        public static string RefillBadge => UiSymbols.Play + " +" + GameManager.RefillAmount;
+        /// <summary>
+        /// Подпись на бейдже у иконки бонуса. Держим в ней ОБА факта, которых требует
+        /// п.4.5.1: что сейчас будет ролик (треугольник «play» + слово «Реклама») и сколько
+        /// дадут за него («+3»). Раньше здесь был голый треугольник — за это черновик и сняли.
+        /// </summary>
+        public static string RefillBadge =>
+            UiSymbols.Play + " " + AdWord + " +" + GameManager.RefillAmount;
 
         // Кнопки на экране поражения — награду называем прямо в подписи кнопки.
         // Награда за «второй шанс» зависит от причины проигрыша (см. GameManager.OnRewarded),

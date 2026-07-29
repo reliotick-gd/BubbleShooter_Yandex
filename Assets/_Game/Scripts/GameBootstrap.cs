@@ -59,6 +59,9 @@ namespace CozyAnimalTown
             if (cam.GetComponent<CameraFitter>() == null)
                 cam.gameObject.AddComponent<CameraFitter>().Init(cfg);
 
+            // Поля вокруг колонки на десктопе — игровой фон, а не пустая заливка (п.5.9).
+            CozyBackdrop.Create(cfg);
+
             // YandexBridge создаём раньше GameManager — cloud save нужен при Init
             if (Object.FindAnyObjectByType<YandexBridge>() == null)
                 new GameObject("YandexBridge").AddComponent<YandexBridge>();

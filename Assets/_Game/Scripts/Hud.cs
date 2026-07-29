@@ -9,12 +9,24 @@ namespace CozyAnimalTown
     {
         GameManager gm;
         Canvas canvas;
-        RectTransform root;
+        RectTransform root;          // колонка доски — за ней и живёт игровой HUD в портрете
+        RectTransform stage;         // весь экран — сюда уезжает HUD на десктопе
+        RectTransform modalRoot;     // жёсткий 1080×1920 — итоги/настройки/диалог рекламы
+
+        // Хром HUD, который на широком экране переезжает в поля; на портрете остаётся
+        // над/под доской. Раскладка пересобирается при смене ориентации окна.
+        RectTransform _rtBack, _rtGear, _rtLb, _rtPillL, _rtPillR, _rtStrip;
+        RectTransform _rtRainbow, _rtBomb;
+        readonly RectTransform[] _slotRt = new RectTransform[8];
+        readonly Image[] _slotDisc = new Image[8];
+        Image _stripBg;
+        int _layoutMode = -1;        // 0 — портрет, 1 — широкий
+
+        // Украшения только для десктопной раскладки — в портрете для них нет места.
+        TMP_Text _capColors, _capRainbow, _capBomb;
+        RectTransform _sideMascot;
 
         GameObject resultRoot, winGroup, loseGroup, pauseRoot;
-        GameObject adOfferRoot;              // диалог «посмотреть рекламу за бонус» (п.4.5.1)
-        TMP_Text   _adOfferTitle, _adOfferReward;
-        Image      _adOfferIcon;
         TMP_Text titleText, _loseCount;
         Image _soundIcon;
         GameObject bombAd, rainbowAd;
@@ -75,16 +87,174 @@ namespace CozyAnimalTown
                 Loc.T("Sweet victory, on you go!",  "Сладкая победа, вперёд!"),
             };
             canvas = UiKit.CreateCanvas("HudCanvas", 100);
-            root = UiKit.Column(canvas);
+            root      = UiKit.Column(canvas);
+            stage     = UiKit.Stage(canvas);
+            modalRoot = UiKit.ModalColumn(canvas);
             BuildTopBar();
             BuildUnlockStrip();
             BuildBonusBar();
             BuildResultPanel();
             BuildPausePanel();
-            BuildAdOfferPanel();
+            BuildSideDecor();
             resultRoot.SetActive(false);
             pauseRoot.SetActive(false);
-            adOfferRoot.SetActive(false);
+            ApplyResponsiveLayout();
+        }
+
+        /// <summary>Подписи и маскот боковых панелей — существуют всегда, но видны
+        /// только в широкой раскладке (в колонке 9:16 для них нет места).</summary>
+        void BuildSideDecor()
+        {
+            _capColors = UiKit.Label(stage, Loc.T("COLOURS IN PLAY", "ЦВЕТА В ИГРЕ"), 26,
+                TextAnchor.MiddleLeft, BrownSoft);
+            _capColors.fontStyle = FontStyles.Bold;
+
+            _capRainbow = UiKit.Label(stage, Loc.T("RAINBOW", "РАДУГА"), 24, TextAnchor.MiddleCenter, BrownSoft);
+            _capRainbow.fontStyle = FontStyles.Bold;
+            _capBomb = UiKit.Label(stage, Loc.T("BOMB", "БОМБА"), 24, TextAnchor.MiddleCenter, BrownSoft);
+            _capBomb.fontStyle = FontStyles.Bold;
+
+            _sideMascot = MakeMascot(stage, "Mascots/cat_3x4", new Vector2(420f, 596f),
+                Vector2.zero, Color.white, true);
+        }
+
+        /// <summary>
+        /// Раскладка HUD под форму экрана. Портрет (телефон) — как было: пилюли и легенда
+        /// над доской, бонусы под ней. Широкий экран (десктоп) — доска занимает всю высоту
+        /// колонки, а хром уезжает в поля по бокам: иначе легенда налезает на верх доски,
+        /// а бонусы — на пушку (в портрете между ними 288 дизайн-единиц запаса, в ландшафте 13).
+        /// Заодно поля перестают быть пустой заливкой — требование п.5.9 / п.5.1.1.2 Яндекса.
+        /// </summary>
+        void ApplyResponsiveLayout()
+        {
+            int mode = ScreenColumn.IsWide ? 1 : 0;
+            if (mode == _layoutMode) return;
+            _layoutMode = mode;
+
+            if (mode == 1) WideLayout();
+            else           PortraitLayout();
+        }
+
+        void Reparent(RectTransform rt, RectTransform parent)
+        {
+            if (rt != null && rt.parent != parent) rt.SetParent(parent, false);
+        }
+
+        void PortraitLayout()
+        {
+            Reparent(_rtBack, root); Reparent(_rtGear, root); Reparent(_rtLb, root);
+            Reparent(_rtPillL, root); Reparent(_rtPillR, root); Reparent(_rtStrip, root);
+            Reparent(_rtRainbow, root); Reparent(_rtBomb, root);
+
+            UiKit.Anchor(_rtBack, new Vector2(0f, 1f), new Vector2(0.5f, 0.5f), new Vector2(30f, -30f), new Vector2(96f, 96f));
+            UiKit.Anchor(_rtGear, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-30f, -30f), new Vector2(96f, 96f));
+            UiKit.Anchor(_rtLb,   new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-146f, -30f), new Vector2(96f, 96f));
+
+            UiKit.Anchor(_rtPillL, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-124f, -150f), new Vector2(228f, 100f));
+            UiKit.Anchor(_rtPillR, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2( 124f, -150f), new Vector2(228f, 100f));
+
+            _stripBg.color = White;
+            UiKit.Anchor(_rtStrip, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, -298f), new Vector2(1026f, 118f));
+            UiKit.SetShadowVisible(_rtStrip, true);
+            for (int i = 0; i < 8; i++)
+            {
+                _slotDisc[i].color = new Color(1f, 1f, 1f, 0f);   // полоска сама белая
+                UiKit.Anchor(_slotRt[i], new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2((i - 3.5f) * 120f, 0f), new Vector2(78f, 78f));
+                UiKit.Anchor((RectTransform)_slotImg[i].transform, new Vector2(0.5f, 0.5f),
+                    new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(78f, 78f));
+            }
+
+            SizeBonus(_rtRainbow, _rainbowIcon, rainbowAd, _rainbowCountBadge, _rainbowLock, 128f);
+            SizeBonus(_rtBomb,    _bombIcon,    bombAd,    _bombCountBadge,    _bombLock,    128f);
+            UiKit.Anchor(_rtRainbow, new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f), new Vector2(-100f, 100f), new Vector2(128f, 128f));
+            UiKit.Anchor(_rtBomb,    new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f), new Vector2( 100f, 100f), new Vector2(128f, 128f));
+
+            _capColors.gameObject.SetActive(false);
+            _capRainbow.gameObject.SetActive(false);
+            _capBomb.gameObject.SetActive(false);
+            if (_sideMascot) _sideMascot.gameObject.SetActive(false);
+        }
+
+        /// <summary>Подгоняет иконку бонуса и его бейджи под диаметр кнопки.</summary>
+        void SizeBonus(RectTransform btn, Image icon, GameObject ad, GameObject count, GameObject lockB, float d)
+        {
+            UiKit.Anchor((RectTransform)icon.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(d * 0.92f, d * 0.92f));
+
+            // Бейдж «▶ Реклама +3» шире кнопки, поэтому в портрете он встаёт НАД кружком:
+            // сбоку два бонуса стоят в 200 единицах друг от друга и бейджи бы пересеклись.
+            // В широкой раскладке кнопки друг под другом — там бейдж ложится справа сверху.
+            float k = d / 128f;
+            if (ScreenColumn.IsWide)
+                UiKit.Anchor((RectTransform)ad.transform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
+                    new Vector2(8f * k, -10f * k), new Vector2(200f * k, 56f * k));
+            else
+                UiKit.Anchor((RectTransform)ad.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f),
+                    new Vector2(0f, 16f * k), new Vector2(196f * k, 54f * k));
+            UiKit.Anchor((RectTransform)count.transform, new Vector2(1f, 0f), new Vector2(0.5f, 0.5f),
+                new Vector2(-14f * k, 12f * k), new Vector2(52f * k, 52f * k));
+            UiKit.Anchor((RectTransform)lockB.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -36f * k), new Vector2(86f * k, 44f * k));
+        }
+
+        void WideLayout()
+        {
+            Reparent(_rtBack, stage); Reparent(_rtGear, stage); Reparent(_rtLb, stage);
+            Reparent(_rtPillL, stage); Reparent(_rtPillR, stage); Reparent(_rtStrip, stage);
+            Reparent(_rtRainbow, stage); Reparent(_rtBomb, stage);
+
+            // Центры боковых панелей — между краем колонки (540) и краем экрана.
+            float half  = StageFitter.HalfWidth;
+            float panel = (half + ColumnFitter.DesignW * 0.5f) * 0.5f;
+
+            // Стрелка «назад» — в нижний угол, подальше от бонусов и настроек.
+            UiKit.Anchor(_rtBack, new Vector2(0f, 0f), new Vector2(0.5f, 0.5f), new Vector2(120f, 100f), new Vector2(112f, 112f));
+            UiKit.Anchor(_rtLb,   new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-244f, -76f), new Vector2(120f, 120f));
+            UiKit.Anchor(_rtGear, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-104f, -76f), new Vector2(120f, 120f));
+
+            // Левая панель: счётчики сверху, под ними — легенда зверей в две колонки.
+            UiKit.Anchor(_rtPillL, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-panel - 124f, -170f), new Vector2(236f, 116f));
+            UiKit.Anchor(_rtPillR, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-panel + 124f, -170f), new Vector2(236f, 116f));
+
+            _capColors.gameObject.SetActive(true);
+            UiKit.Anchor(_capColors.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, 0.5f),
+                new Vector2(-panel - 242f, -272f), new Vector2(420f, 40f));
+
+            // Полоска-подложка не нужна: в две колонки зверей держат собственные белые диски.
+            // Тень гасим отдельно — иначе от прозрачной панели остаётся бежевый призрак.
+            _stripBg.color = new Color(1f, 1f, 1f, 0f);
+            UiKit.Anchor(_rtStrip, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-panel, -450f), new Vector2(500f, 300f));
+            UiKit.SetShadowVisible(_rtStrip, false);
+            for (int i = 0; i < 8; i++)
+            {
+                _slotDisc[i].color = White;
+                UiKit.Anchor(_slotRt[i], new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(((i & 1) - 0.5f) * 190f, 92f - (i >> 1) * 122f), new Vector2(104f, 104f));
+                UiKit.Anchor((RectTransform)_slotImg[i].transform, new Vector2(0.5f, 0.5f),
+                    new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(86f, 86f));
+            }
+
+            // Маскот внизу левой панели — он же встречает на экране победы, узнаваемый образ.
+            if (_sideMascot)
+            {
+                _sideMascot.gameObject.SetActive(true);
+                UiKit.Anchor(_sideMascot, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                    new Vector2(-panel + 20f, 40f), new Vector2(332f, 470f));
+            }
+
+            // Правая панель: бонусы крупно, друг под другом — рядом встаёт бейдж «▶ +3».
+            SizeBonus(_rtRainbow, _rainbowIcon, rainbowAd, _rainbowCountBadge, _rainbowLock, 168f);
+            SizeBonus(_rtBomb,    _bombIcon,    bombAd,    _bombCountBadge,    _bombLock,    168f);
+            UiKit.Anchor(_rtRainbow, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(panel, 190f), new Vector2(168f, 168f));
+            UiKit.Anchor(_rtBomb,    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(panel, -110f), new Vector2(168f, 168f));
+
+            _capRainbow.gameObject.SetActive(true);
+            _capBomb.gameObject.SetActive(true);
+            UiKit.Anchor(_capRainbow.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(panel, 190f - 122f), new Vector2(300f, 36f));
+            UiKit.Anchor(_capBomb.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(panel, -110f - 122f), new Vector2(300f, 36f));
         }
 
         void BuildTopBar()
@@ -92,22 +262,26 @@ namespace CozyAnimalTown
             var back = UiKit.CircleButton(root, new Vector2(0f, 1f), new Vector2(30f, -30f),
                 96f, White, out var backIcon, () => gm.OpenTitle());
             backIcon.sprite = IconFactory.Get("back", Brown);
+            _rtBack = (RectTransform)back.transform;
 
             var gear = UiKit.CircleButton(root, new Vector2(1f, 1f), new Vector2(-30f, -30f),
                 96f, White, out var gearIcon, () => gm.SetPaused(true));
             gearIcon.sprite = IconFactory.Get("gear", Brown);
+            _rtGear = (RectTransform)gear.transform;
 
             var lb = UiKit.CircleButton(root, new Vector2(1f, 1f), new Vector2(-146f, -30f),
                 96f, White, out var lbIcon, () => gm.OpenLeaderboard());
             lbIcon.sprite = IconFactory.Get("leaderboard", Brown);
+            _rtLb = (RectTransform)lb.transform;
 
-            _tLevel = BuildStatPill(new Vector2(-124f, -150f), Loc.T("LEVEL", "УРОВЕНЬ"));
-            _tShots = BuildStatPill(new Vector2( 124f, -150f), Loc.T("SHOTS", "ВЫСТРЕЛЫ"));
+            _tLevel = BuildStatPill(new Vector2(-124f, -150f), Loc.T("LEVEL", "УРОВЕНЬ"), out _rtPillL);
+            _tShots = BuildStatPill(new Vector2( 124f, -150f), Loc.T("SHOTS", "ВЫСТРЕЛЫ"), out _rtPillR);
         }
 
-        TMP_Text BuildStatPill(Vector2 pos, string caption)
+        TMP_Text BuildStatPill(Vector2 pos, string caption, out RectTransform rt)
         {
             var pill = UiKit.Pill(root, new Vector2(0.5f, 1f), pos, new Vector2(228f, 100f), White);
+            rt = pill.rectTransform;
 
             var val = UiKit.Label(pill.transform, "0", 46, TextAnchor.MiddleCenter, Brown);
             val.fontStyle = FontStyles.Bold;
@@ -130,19 +304,35 @@ namespace CozyAnimalTown
 
             var strip = UiKit.Pill(root, new Vector2(0.5f, 1f), new Vector2(0f, -298f),
                 new Vector2(1026f, 118f), White);
+            _stripBg = strip;
+            _rtStrip = strip.rectTransform;
 
             for (int i = 0; i < 8; i++)
             {
                 float x = (i - 3.5f) * 120f;
                 var go = new GameObject("Slot" + i, typeof(RectTransform));
                 go.transform.SetParent(strip.transform, false);
-                var img = go.AddComponent<Image>();
+
+                // Слот = белый диск-подложка, зверь — ребёнком поверх. В портрете диск
+                // прозрачный (полоска сама белая), на десктопе он и держит форму легенды.
+                var disc = go.AddComponent<Image>();
+                disc.sprite = SpriteFactory.Circle();
+                disc.raycastTarget = false;
+                disc.color = new Color(1f, 1f, 1f, 0f);
+                _slotDisc[i] = disc;
+                UiKit.Anchor(disc.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(x, 0f), new Vector2(78f, 78f));
+
+                var animalGo = new GameObject("Animal", typeof(RectTransform));
+                animalGo.transform.SetParent(go.transform, false);
+                var img = animalGo.AddComponent<Image>();
                 img.sprite = AnimalSpriteFactory.Get(i, pal[i]);
                 img.preserveAspect = true;
                 img.raycastTarget = false;
                 UiKit.Anchor(img.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                    new Vector2(x, 0f), new Vector2(78f, 78f));
+                    Vector2.zero, new Vector2(78f, 78f));
                 _slotImg[i] = img;
+                _slotRt[i]  = disc.rectTransform;
 
                 if (i >= 3)
                 {
@@ -161,18 +351,22 @@ namespace CozyAnimalTown
         void BuildBonusBar()
         {
             _tRainbow = BuildBonus(new Vector2(-100f, 100f), GameConfig.RainbowId, GameManager.RainbowUnlockLevel,
-                out _rainbowIcon, out rainbowAd, out _rainbowCountBadge, out _rainbowLock, () => gm.UseRainbow());
+                out _rainbowIcon, out rainbowAd, out _rainbowCountBadge, out _rainbowLock, () => gm.UseRainbow(),
+                out _rtRainbow);
             _tBomb    = BuildBonus(new Vector2(100f, 100f), GameConfig.BombId, GameManager.BombUnlockLevel,
-                out _bombIcon, out bombAd, out _bombCountBadge, out _bombLock, () => gm.UseBomb());
+                out _bombIcon, out bombAd, out _bombCountBadge, out _bombLock, () => gm.UseBomb(),
+                out _rtBomb);
         }
 
         TMP_Text BuildBonus(Vector2 posFromBottom, int specialId, int unlockLevel, out Image icon,
-            out GameObject adBadge, out GameObject countBadge, out GameObject lockBadge, UnityEngine.Events.UnityAction onClick)
+            out GameObject adBadge, out GameObject countBadge, out GameObject lockBadge,
+            UnityEngine.Events.UnityAction onClick, out RectTransform btnRt)
         {
             var btn = UiKit.CircleButton(root, new Vector2(0.5f, 0f), posFromBottom, 128f,
                 White, out icon, onClick);
             icon.sprite = AnimalSpriteFactory.Get(specialId, Color.white);
             var holder = (RectTransform)btn.transform;
+            btnRt = holder;
 
             var badge = UiKit.Panel(holder, BadgeDark, false);
             UiKit.Anchor(badge.rectTransform, new Vector2(1f, 0f), new Vector2(0.5f, 0.5f),
@@ -190,8 +384,10 @@ namespace CozyAnimalTown
             var ad = UiKit.Panel(holder, GreenAd, false);
             UiKit.Anchor(ad.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
                 new Vector2(2f, 8f), new Vector2(118f, 54f));
-            var adTxt = UiKit.Label(ad.transform, AdLoc.RefillBadge, 28, TextAnchor.MiddleCenter, White);
+            var adTxt = UiKit.Label(ad.transform, AdLoc.RefillBadge, 26, TextAnchor.MiddleCenter, White);
             adTxt.fontStyle = FontStyles.Bold;
+            adTxt.enableAutoSizing = true;
+            adTxt.fontSizeMin = 18; adTxt.fontSizeMax = 26;
             UiKit.Stretch(adTxt.rectTransform);
             adBadge = ad.gameObject;
 
@@ -218,10 +414,10 @@ namespace CozyAnimalTown
         void BuildResultPanel()
         {
             resultRoot = new GameObject("Result", typeof(RectTransform));
-            resultRoot.transform.SetParent(root, false);
+            resultRoot.transform.SetParent(modalRoot, false);
             UiKit.Stretch((RectTransform)resultRoot.transform);
             var dim = UiKit.Panel(resultRoot.transform, new Color(0.07f, 0.06f, 0.09f, 0.88f), true);
-            UiKit.Stretch(dim.rectTransform);
+            UiKit.FullScreenDim(dim.rectTransform);
 
             winGroup = NewGroup("Win", resultRoot.transform);
             _sunburstRt  = MakeGlow(winGroup.transform, new Color(1f, 0.84f, 0.32f, 0.42f), 1500f, new Vector2(0f, 60f), UiKit.SunburstSprite);
@@ -353,75 +549,13 @@ namespace CozyAnimalTown
             UiKit.Stretch(t.rectTransform);
         }
 
-        /// <summary>
-        /// Диалог подтверждения перед rewarded за пополнение бонуса. Требование Яндекса
-        /// п.4.5.1: игрок должен ДО показа понимать, что сейчас будет реклама и что именно
-        /// он за неё получит. По тапу в иконку пустого бонуса ролик больше не стартует сам —
-        /// сначала этот экран, ролик уходит только из кнопки «Смотреть рекламу».
-        /// </summary>
-        void BuildAdOfferPanel()
-        {
-            adOfferRoot = new GameObject("AdOffer", typeof(RectTransform));
-            adOfferRoot.transform.SetParent(root, false);
-            UiKit.Stretch((RectTransform)adOfferRoot.transform);
-            var dim = UiKit.Panel(adOfferRoot.transform, new Color(0.07f, 0.06f, 0.09f, 0.72f), true);
-            UiKit.Stretch(dim.rectTransform);
-
-            var box = Card(adOfferRoot.transform, new Vector2(0f, 0f), new Vector2(780f, 640f));
-
-            _adOfferTitle = UiKit.Label(box.transform, "", 46, TextAnchor.MiddleCenter, Brown);
-            _adOfferTitle.fontStyle = FontStyles.Bold;
-            UiKit.Anchor(_adOfferTitle.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -72f), new Vector2(700f, 70f));
-
-            // Иконка того самого бонуса — игрок видит, что именно пополняет.
-            var iconGo = new GameObject("Icon", typeof(RectTransform));
-            iconGo.transform.SetParent(box.transform, false);
-            _adOfferIcon = iconGo.AddComponent<Image>();
-            _adOfferIcon.preserveAspect = true; _adOfferIcon.raycastTarget = false;
-            UiKit.Anchor(_adOfferIcon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -200f), new Vector2(150f, 150f));
-
-            _adOfferReward = UiKit.Label(box.transform, "", 34, TextAnchor.MiddleCenter, BrownSoft);
-            _adOfferReward.enableAutoSizing = true;
-            _adOfferReward.fontSizeMin = 26; _adOfferReward.fontSizeMax = 34;
-            UiKit.Anchor(_adOfferReward.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -320f), new Vector2(680f, 110f));
-
-            var watch = UiKit.CandyBtn(box.transform, UiSymbols.Play + " " + AdLoc.WatchAd, 40, GreenAd, White,
-                () => gm.ConfirmAdOffer());
-            var watchRt = (RectTransform)watch.transform;
-            UiKit.Anchor(watchRt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 150f), new Vector2(660f, 132f));
-            UiKit.AddShadow(watchRt, 12f, -7f);
-
-            SoftButton(box.transform, AdLoc.Cancel, new Color(0.93f, 0.90f, 0.85f), BrownSoft,
-                new Vector2(0f, 46f), new Vector2(480f, 84f), () => gm.CancelAdOffer());
-        }
-
-        /// <summary>Показывает диалог пополнения для конкретного бонуса (радуга/бомба).</summary>
-        public void ShowAdOffer(int specialId)
-        {
-            bool bomb = specialId == GameConfig.BombId;
-            _adOfferTitle.text  = bomb ? AdLoc.BombTitle  : AdLoc.RainbowTitle;
-            _adOfferReward.text = bomb ? AdLoc.BombReward : AdLoc.RainbowReward;
-            _adOfferIcon.sprite = AnimalSpriteFactory.Get(specialId, Color.white);
-            adOfferRoot.SetActive(true);
-            adOfferRoot.transform.SetAsLastSibling();   // поверх остальных панелей HUD
-        }
-
-        public void HideAdOffer()
-        {
-            if (adOfferRoot != null) adOfferRoot.SetActive(false);
-        }
-
         void BuildPausePanel()
         {
             pauseRoot = new GameObject("Pause", typeof(RectTransform));
-            pauseRoot.transform.SetParent(root, false);
+            pauseRoot.transform.SetParent(modalRoot, false);
             UiKit.Stretch((RectTransform)pauseRoot.transform);
             var dim = UiKit.Panel(pauseRoot.transform, Dim, true);
-            UiKit.Stretch(dim.rectTransform);
+            UiKit.FullScreenDim(dim.rectTransform);
 
             var box = Card(pauseRoot.transform, new Vector2(0f, 0f), new Vector2(680f, 460f));
             var title = UiKit.Label(box.transform, Loc.T("Settings", "Настройки"), 48, TextAnchor.MiddleCenter, Brown);
@@ -677,6 +811,7 @@ namespace CozyAnimalTown
         void Update()
         {
             if (gm == null) return;
+            ApplyResponsiveLayout();   // окно браузера могли растянуть/сузить на лету
             UpdateStats();
             UpdateBonuses();
             UpdateUnlocks();

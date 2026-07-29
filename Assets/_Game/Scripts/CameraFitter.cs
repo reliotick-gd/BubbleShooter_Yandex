@@ -14,16 +14,22 @@ namespace CozyAnimalTown
         Camera bgCam;
         GameConfig cfg;
 
-        // Сдвиг камеры вверх → поле визуально ниже (ближе к бонусам, место под HUD сверху).
-        public const float BoardYOffset = 1.0f;
+        /// <summary>
+        /// Сдвиг камеры вверх → поле визуально ниже. В портрете он резервирует полосу под
+        /// HUD над доской. На десктопе HUD уехал в боковые панели, резервировать нечего —
+        /// иначе доска липнет к низу экрана, а сверху зияет пустая полоса.
+        /// 0.05 — центр содержимого доски (верх ряда 5.06, низ пушки −4.95).
+        /// </summary>
+        public static float BoardYOffset => ScreenColumn.IsWide ? 0.05f : 1.0f;
 
         /// <summary>Мировая точка → координаты дизайн-макета (центр = 0,0; ±540×±960),
         /// т.к. камера рендерит поле ровно в колонку 9:16 (см. ColumnFitter/LateUpdate).</summary>
         public static Vector2 WorldToDesign(Vector3 world, GameConfig cfg)
         {
             float halfW = cfg.boardWidth * 0.5f + 0.6f;
-            float ortho = halfW / ScreenColumn.TargetAspect;
-            return new Vector2(world.x / halfW * 540f, (world.y - BoardYOffset) / ortho * 960f);
+            float ortho = halfW / ScreenColumn.Aspect;
+            return new Vector2(world.x / halfW * (ColumnFitter.DesignW * 0.5f),
+                               (world.y - BoardYOffset) / ortho * (ColumnFitter.DesignHeight * 0.5f));
         }
 
         float _shakeIntensity, _shakeDuration, _shakeElapsed;
@@ -66,7 +72,10 @@ namespace CozyAnimalTown
             // Тот же центрированный 9:16-прямоугольник, что и UI (ScreenColumn). Орто-размер
             // фиксирован по ширине колонки — поле центрируется по вертикали, место под HUD остаётся.
             cam.rect = ScreenColumn.Column();
-            cam.orthographicSize = (cfg.boardWidth * 0.5f + 0.6f) / ScreenColumn.TargetAspect;
+            // Орто-размер задаёт ШИРИНА колонки — доска обязана влезать по горизонтали
+            // целиком (11 ячеек + поля на рикошет). На десктопе колонка шире → тот же
+            // мир занимает меньше вертикали → доска на экране крупнее.
+            cam.orthographicSize = (cfg.boardWidth * 0.5f + 0.6f) / ScreenColumn.Aspect;
 
             if (_shakeElapsed < _shakeDuration)
             {
