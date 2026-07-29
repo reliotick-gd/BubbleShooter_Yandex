@@ -1,37 +1,39 @@
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace CozyAnimalTown
 {
     /// <summary>
-    /// Игровой фон в полях вокруг колонки (десктоп). Раньше их заливала фоновая камера
-    /// с cullingMask = 0 — ровный крем на 69% кадра. Яндекс это запрещает: п.5.9 разрешает
+    /// Игровой фон под ВСЕМ кадром. Раньше поля вокруг колонки заливала фоновая камера с
+    /// cullingMask = 0 — ровный крем на 69% кадра. Яндекс это запрещает: п.5.9 разрешает
     /// поля, только если они «часть игры, а не заливка при масштабировании», а п.5.1.1.2
     /// требует, чтобы кадр качественно демонстрировал механику и графику.
     ///
-    /// Устройство: оверлейный Canvas из двух полос по бокам колонки. В каждой — одна и та же
-    /// процедурная текстура, обрезанная по uvRect, поэтому градиент и «боке» проходят через
-    /// колонку без шва. Поверх очень медленно дрейфуют мягкие пастельные пятна — нейтральное
-    /// боке, а не игровые мордочки: те спорили бы с доской. Полосы обрезают содержимое
-    /// (RectMask2D), так что пятно уплывает ЗА доску, а не поверх неё.
+    /// ПОЧЕМУ МИРОВЫЕ СПРАЙТЫ, А НЕ UI. Первая версия рисовала фон двумя оверлейными
+    /// полосами по бокам колонки. Оверлейный канвас всегда поверх вывода камеры, поэтому
+    /// фон приходилось обрывать ровно на границах колонки — и в кадре появлялись
+    /// вертикальные швы: по бокам живой фон, внутри колонки плоская заливка камеры.
+    /// Вторая попытка (отдельная фоновая камера + clearFlags = Depth) не сработала: проект
+    /// на URP, где базовая камера всё равно очищает свой вьюпорт.
+    /// Итог: на широком экране вьюпорт основной камеры растянут на весь кадр
+    /// (CameraFitter.LateUpdate) и она же рисует этот фон — швов нет по построению.
+    /// Масштаб при этом не меняется: орто-размер — полувысота, а высота вьюпорта та же.
+    /// Середину кадра закрывает белая карта поля — как в макете.
     /// </summary>
     public class CozyBackdrop : MonoBehaviour
     {
-        const int   TexW = 384, TexH = 216;   // картинка мягкая, тянется фильтрацией
-        const int   BubblesPerSide = 5;
-        const float DesignH = 1200f;          // условная высота «мира» дрейфа
+        public const string LayerName = "Backdrop";
+
+        const int   TexW = 384, TexH = 216;
+        const int   Circles = 9;
 
         struct Floater
         {
-            public RectTransform rt;
-            public float x, y;        // 0..1 по полосе, 0..1 по высоте
-            public float speed;       // доля высоты в секунду
-            public float swayAmp, swayFreq, swayPhase;
+            public Transform tr;
+            public float x, y;            // −1..1 по ширине, 0..1 по высоте
+            public float speed, swayAmp, swayFreq, swayPhase, size;
         }
 
-        Canvas _canvas;
-        RectTransform _leftStrip, _rightStrip;
-        RawImage _leftBg, _rightBg;
+        SpriteRenderer _bg;
         Floater[] _float;
 
         public static CozyBackdrop Create(GameConfig cfg)
@@ -43,160 +45,101 @@ namespace CozyAnimalTown
 
         CozyBackdrop Init(GameConfig cfg)
         {
-            _canvas = UiKit.CreateCanvas("BackdropCanvas", -100);   // под всем UI
-            var tex = Build(cfg);
+            int layer = LayerMask.NameToLayer(LayerName);
+            if (layer < 0) layer = 0;      // слой не заведён — рисуем хотя бы на Default
+            gameObject.layer = layer;
 
-            _leftStrip  = Strip(out _leftBg,  tex);
-            _rightStrip = Strip(out _rightBg, tex);
+            var tex = BuildTexture(cfg);
+            var bgSprite = Sprite.Create(tex, new Rect(0, 0, TexW, TexH), new Vector2(0.5f, 0.5f), 100f);
 
+            var bgGo = new GameObject("Sky") { layer = layer };
+            bgGo.transform.SetParent(transform, false);
+            _bg = bgGo.AddComponent<SpriteRenderer>();
+            _bg.sprite = bgSprite;
+            _bg.drawMode = SpriteDrawMode.Sliced;      // тянем под размер кадра
+            _bg.sortingOrder = -200;
+
+            var circle = SpriteFactory.Circle();
             var pal = cfg.palette;
-            _float = new Floater[BubblesPerSide * 2];
-            for (int i = 0; i < _float.Length; i++)
+            // Тёплая выборка палитры: яркий голубой в фоне читался холодным пятном.
+            int[] warm = { 1, 0, 5, 4, 2, 7 };
+
+            _float = new Floater[Circles];
+            for (int i = 0; i < Circles; i++)
             {
-                var parent = i < BubblesPerSide ? _leftStrip : _rightStrip;
+                var go = new GameObject("Blob") { layer = layer };
+                go.transform.SetParent(transform, false);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = circle;
+                sr.sortingOrder = -190;
 
-                var go = new GameObject("Float", typeof(RectTransform));
-                go.transform.SetParent(parent, false);
-                var img = go.AddComponent<Image>();
-
-                // Нейтральное боке, а НЕ шарики-зверята: мордочки из игры на фоне спорят
-                // с доской и читаются как мусор. Круг с чёткой границей, а не размытый
-                // glow: на референсе пятна читаются как круги, размытие давало «муть».
-                img.sprite = SpriteFactory.Circle();
-                img.raycastTarget = false;
-
-                // Детерминированный «псевдослучай» от индекса: одинаковая раскладка при
-                // каждом запуске (важно для повторяемых промо-скриншотов).
+                // Детерминированный «псевдослучай» от индекса: раскладка одинакова при
+                // каждом запуске — промо-кадры повторяемы.
                 float r1 = Frac(i * 0.6180339f);
                 float r2 = Frac(i * 0.3819660f + 0.37f);
                 float r3 = Frac(i * 0.7548776f + 0.11f);
 
-                // Пастель: цвет палитры, разбавленный до фона, и очень низкая альфа.
-                // Тёплая выборка палитры: яркий голубой (индекс 3) в фоне читался холодным
-                // пятном и выбивался из кремовой гаммы игры.
-                int[] warm = { 1, 0, 5, 4, 2, 7 };
                 Color c = Color.Lerp(pal[warm[i % warm.Length]], Color.white, 0.62f);
                 c.a = Mathf.Lerp(0.30f, 0.55f, r3);
-                img.color = c;
-
-                float size = Mathf.Lerp(240f, 520f, r1);
-                img.rectTransform.sizeDelta = new Vector2(size, size);
+                sr.color = c;
 
                 _float[i] = new Floater
                 {
-                    rt        = img.rectTransform,
-                    x         = 0.10f + 0.80f * r2,
+                    tr        = go.transform,
+                    x         = r2 * 2f - 1f,
                     y         = r3,
-                    speed     = Mathf.Lerp(0.008f, 0.020f, r1),   // очень медленно — это фон
-                    swayAmp   = Mathf.Lerp(18f, 54f, r2),
+                    speed     = Mathf.Lerp(0.008f, 0.020f, r1),
+                    swayAmp   = Mathf.Lerp(0.15f, 0.45f, r2),
                     swayFreq  = Mathf.Lerp(0.07f, 0.17f, r3),
                     swayPhase = r1 * 6.283f,
+                    size      = Mathf.Lerp(2.2f, 5.0f, r1),
                 };
             }
-
-            Apply();
             return this;
         }
 
         static float Frac(float v) => v - Mathf.Floor(v);
 
-        RectTransform Strip(out RawImage bg, Texture2D tex)
-        {
-            var go = new GameObject("Strip", typeof(RectTransform));
-            go.transform.SetParent(_canvas.transform, false);
-            go.AddComponent<RectMask2D>();      // шарики уплывают ЗА доску, а не поверх неё
-
-            var bgGo = new GameObject("Bg", typeof(RectTransform));
-            bgGo.transform.SetParent(go.transform, false);
-            bg = bgGo.AddComponent<RawImage>();
-            bg.texture = tex;
-            bg.raycastTarget = false;
-            UiKit.Stretch(bg.rectTransform);
-
-            return (RectTransform)go.transform;
-        }
-
         void LateUpdate()
         {
-            Apply();
-            Drift(Time.unscaledDeltaTime);   // фон живёт даже когда игра на паузе
-        }
+            // Размер берём у основной камеры: в широком режиме её вьюпорт — весь экран,
+            // и фон обязан покрыть ровно то, что она видит.
+            var cam = Camera.main;
+            if (cam == null || !cam.orthographic) return;
+            float halfH = cam.orthographicSize;
+            float halfW = halfH * Mathf.Max(0.1f, cam.aspect);
+            transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y, 0f);
 
-        void Drift(float dt)
-        {
-            if (_float == null) return;
+            if (_bg != null) _bg.size = new Vector2(halfW * 2f, halfH * 2f);
+
             float t = Time.unscaledTime;
+            float dt = Time.unscaledDeltaTime;      // фон живёт и на паузе, и во время рекламы
 
             for (int i = 0; i < _float.Length; i++)
             {
                 ref var f = ref _float[i];
-                if (f.rt == null) continue;
+                if (f.tr == null) continue;
 
                 f.y += f.speed * dt;
-                if (f.y > 1.25f) f.y -= 1.5f;      // ушёл за верх — заходит снизу
-
-                var parent = (RectTransform)f.rt.parent;
-                float w = parent.rect.width, h = parent.rect.height;
+                if (f.y > 1.3f) f.y -= 1.6f;        // ушёл за верх — заходит снизу
 
                 float sway = Mathf.Sin(t * f.swayFreq * 6.283f + f.swayPhase) * f.swayAmp;
-                f.rt.anchorMin = f.rt.anchorMax = new Vector2(0f, 0f);
-                f.rt.pivot = new Vector2(0.5f, 0.5f);
-                f.rt.anchoredPosition = new Vector2(f.x * w + sway, (f.y - 0.125f) * h);
+                f.tr.localPosition = new Vector3(f.x * halfW + sway, (f.y - 0.15f) * halfH * 2f - halfH, 0f);
 
-                // Лёгкое «дыхание» масштаба — движение читается даже когда пятно почти
-                // не сместилось. Амплитуда маленькая: фон не должен притягивать взгляд.
-                float pulse = 1f + 0.05f * Mathf.Sin(t * 0.21f + f.swayPhase);
-                f.rt.localScale = new Vector3(pulse, pulse, 1f);
+                // Лёгкое «дыхание» — движение читается, даже когда пятно почти не сместилось.
+                float pulse = f.size * (1f + 0.05f * Mathf.Sin(t * 0.21f + f.swayPhase));
+                f.tr.localScale = new Vector3(pulse, pulse, 1f);
             }
         }
 
-        void Apply()
-        {
-            Rect c = ScreenColumn.Column();
-            float sw = Screen.width, sh = Screen.height;
-
-            float leftW  = c.xMin * sw;
-            float rightW = (1f - c.xMax) * sw;
-            bool  show   = leftW > 1f || rightW > 1f;
-            if (_leftStrip.gameObject.activeSelf != show)
-            {
-                _leftStrip.gameObject.SetActive(show);
-                _rightStrip.gameObject.SetActive(show);
-            }
-            if (!show) return;
-
-            Place(_leftStrip,  _leftBg,  -sw * 0.5f,          leftW,  sh, 0f,     c.xMin);
-            Place(_rightStrip, _rightBg,  sw * 0.5f - rightW, rightW, sh, c.xMax, 1f);
-        }
-
-        // x — левый край полосы в координатах overlay-канваса (центр экрана = 0).
-        // u0..u1 — кусок текстуры, чтобы рисунок был сквозным через колонку.
-        static void Place(RectTransform strip, RawImage bg, float x, float w, float h, float u0, float u1)
-        {
-            strip.anchorMin = strip.anchorMax = new Vector2(0.5f, 0.5f);
-            strip.pivot     = new Vector2(0f, 0.5f);
-            strip.sizeDelta = new Vector2(w, h);
-            strip.anchoredPosition = new Vector2(x, 0f);
-            bg.uvRect = new Rect(u0, 0f, u1 - u0, 1f);
-        }
-
-        /// <summary>Процедурный фон: тёплый градиент, мягкие цветные пятна, холмы понизу.</summary>
-        static Texture2D Build(GameConfig cfg)
+        /// <summary>Процедурный фон: тёплый градиент и холмы понизу. Цвет дают круги поверх.</summary>
+        static Texture2D BuildTexture(GameConfig cfg)
         {
             var tex = new Texture2D(TexW, TexH, TextureFormat.RGB24, false)
             { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
 
             Color top = cfg.bgColor;
             Color bot = new Color(cfg.bgColor.r - 0.07f, cfg.bgColor.g - 0.10f, cfg.bgColor.b - 0.14f);
-
-            // Пятна берут цвета из игровой палитры — те же, что у шариков.
-            var blobs = new[]
-            {
-                new Vector4(0.09f, 0.82f, 0.16f, 1f), new Vector4(0.17f, 0.30f, 0.11f, 2f),
-                new Vector4(0.06f, 0.52f, 0.08f, 0f), new Vector4(0.91f, 0.77f, 0.17f, 4f),
-                new Vector4(0.85f, 0.34f, 0.12f, 5f), new Vector4(0.96f, 0.13f, 0.09f, 3f),
-                new Vector4(0.23f, 0.09f, 0.07f, 6f), new Vector4(0.78f, 0.90f, 0.07f, 7f),
-            };
 
             var px = new Color[TexW * TexH];
             for (int y = 0; y < TexH; y++)
@@ -207,18 +150,6 @@ namespace CozyAnimalTown
                 {
                     float u = (float)x / (TexW - 1);
                     Color c = baseCol;
-
-                    foreach (var b in blobs)
-                    {
-                        float dx = (u - b.x) * (TexW / (float)TexH);   // круги, а не эллипсы
-                        float dy = v - b.y;
-                        float d  = Mathf.Sqrt(dx * dx + dy * dy) / b.z;
-                        if (d >= 1f) continue;
-                        // Слабо: основной цвет дают дрейфующие круги поверх, текстура —
-                        // только тёплая подложка с градиентом и холмами.
-                        float k = (1f - d) * (1f - d) * 0.10f;
-                        c = Color.Lerp(c, cfg.palette[(int)b.w], k);
-                    }
 
                     // Два холма понизу — «земля», как на титуле.
                     float h1 = 0.20f + 0.07f * Mathf.Sin((u + 0.15f) * 3.6f);

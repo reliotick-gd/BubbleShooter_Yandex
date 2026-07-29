@@ -41,16 +41,19 @@ namespace CozyAnimalTown
             Instance = this;
             this.cfg = cfg;
             cam = GetComponent<Camera>();
+
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = cfg.bgColor;
 
-            // Заливает весь экран небом (поля вокруг колонки 9:16); cullingMask=0 — ничего
-            // не рендерит, только clear. Глубина ниже основной камеры.
+            // Фон рисует САМА основная камера (см. LateUpdate: на широком экране её вьюпорт
+            // растянут на весь кадр). Отдельная камера тут не годится: проект на URP, где
+            // базовая камера всё равно очищает свой вьюпорт, и clearFlags = Depth не
+            // композитит — из-за этого на границах колонки были вертикальные швы.
             var go = new GameObject("SkyCamera");
             bgCam = go.AddComponent<Camera>();
             bgCam.orthographic     = true;
             bgCam.depth            = cam.depth - 10f;
-            bgCam.cullingMask      = 0;
+            bgCam.cullingMask      = 0;         // только заливка полей при letterbox в портрете
             bgCam.clearFlags       = CameraClearFlags.SolidColor;
             bgCam.backgroundColor  = cfg.bgColor;
             bgCam.rect             = new Rect(0f, 0f, 1f, 1f);
@@ -71,11 +74,15 @@ namespace CozyAnimalTown
 
             // Тот же центрированный 9:16-прямоугольник, что и UI (ScreenColumn). Орто-размер
             // фиксирован по ширине колонки — поле центрируется по вертикали, место под HUD остаётся.
-            cam.rect = ScreenColumn.Column();
             // Орто-размер задаёт ШИРИНА колонки — доска обязана влезать по горизонтали
-            // целиком (11 ячеек + поля на рикошет). На десктопе колонка шире → тот же
-            // мир занимает меньше вертикали → доска на экране крупнее.
+            // целиком (11 ячеек + поля на рикошет).
             cam.orthographicSize = (cfg.boardWidth * 0.5f + 0.6f) / ScreenColumn.Aspect;
+
+            // На широком экране камера занимает ВЕСЬ кадр, а не колонку. Масштаб от этого
+            // не меняется (орто-размер — полувысота, а высота вьюпорта та же): просто
+            // становится видно мир по бокам от доски, и фон рисуется без швов.
+            // В портрете оставляем колонку — там поля добивает SkyCamera.
+            cam.rect = ScreenColumn.IsWide ? new Rect(0f, 0f, 1f, 1f) : ScreenColumn.Column();
 
             if (_shakeElapsed < _shakeDuration)
             {

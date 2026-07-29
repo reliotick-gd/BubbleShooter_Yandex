@@ -24,6 +24,9 @@ namespace CozyAnimalTown
 
         // Украшения только для десктопной раскладки — в портрете для них нет места.
         TMP_Text _capColors, _capRainbow, _capBomb;
+        // Подписи «УРОВЕНЬ»/«ВЫСТРЕЛЫ» внутри пилюль — кегль меняется вместе с раскладкой.
+        TMP_Text _capPillL, _capPillR;
+        TMP_Text _adTxtRainbow, _adTxtBomb;
 
         GameObject resultRoot, winGroup, loseGroup, pauseRoot;
         TMP_Text titleText, _loseCount;
@@ -148,6 +151,11 @@ namespace CozyAnimalTown
 
             UiKit.Anchor(_rtPillL, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-124f, -150f), new Vector2(228f, 100f));
             UiKit.Anchor(_rtPillR, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2( 124f, -150f), new Vector2(228f, 100f));
+            // Кегли задаём явно: широкая раскладка их перебивает, и при возврате в портрет
+            // (ресайз окна) они бы остались десктопными.
+            _tLevel.fontSize = _tShots.fontSize = 46f;
+            _capPillL.fontSize = _capPillR.fontSize = 18f;
+            _adTxtRainbow.fontSize = _adTxtBomb.fontSize = 26f;
 
             _stripBg.color = White;
             UiKit.Anchor(_rtStrip, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, -298f), new Vector2(1026f, 118f));
@@ -190,10 +198,11 @@ namespace CozyAnimalTown
             {
                 // Бейдж лежит на верхнем правом краю кружка. Ширина — ровно под «🎬 AD +3»,
                 // не растянутая плашка: пустое поле вокруг короткого текста выглядит дёшево.
+                // Ниже, чем на макете: иначе бейдж упирается в подпись «РАДУГА» над бомбой.
                 UiKit.Anchor((RectTransform)ad.transform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
-                    new Vector2(-d * 0.05f, -d * 0.10f), new Vector2(d * 0.60f, d * 0.28f));
+                    new Vector2(-d * 0.003f, -d * 0.20f), new Vector2(d * 0.697f, d * 0.313f));
                 UiKit.Anchor((RectTransform)count.transform, new Vector2(1f, 0f), new Vector2(0.5f, 0.5f),
-                    new Vector2(-d * 0.143f, d * 0.152f), new Vector2(d * 0.25f, d * 0.25f));
+                    new Vector2(-d * 0.147f, d * 0.107f), new Vector2(d * 0.303f, d * 0.303f));
             }
             else
             {
@@ -218,56 +227,60 @@ namespace CozyAnimalTown
             Reparent(_rtPillL, stage); Reparent(_rtPillR, stage); Reparent(_rtStrip, stage);
             Reparent(_rtRainbow, stage); Reparent(_rtBomb, stage);
 
-            // Центры боковых панелей. Смещения +40/+35 подогнаны по референсу: панели
-            // чуть ближе к доске, чем геометрический центр поля.
+            // Центры боковых панелей. Смещения сняты с референса: левая панель немного
+            // ближе к доске, правая — почти по геометрическому центру поля.
             float half = StageFitter.HalfWidth;
-            float lp   = -(half + ColumnFitter.DesignW * 0.5f) * 0.5f + 40f;
-            float rp   =  (half + ColumnFitter.DesignW * 0.5f) * 0.5f + 35f;
+            float lp   = -(half + ColumnFitter.DesignW * 0.5f) * 0.5f + 55f;
+            float rp   =  (half + ColumnFitter.DesignW * 0.5f) * 0.5f + 4f;
 
-            const float C = 0.5f;
-            var mid = new Vector2(C, C);
+            var mid = new Vector2(0.5f, 0.5f);
 
             // Стрелка «назад» — в нижний угол, подальше от бонусов и настроек.
-            UiKit.Anchor(_rtBack, mid, mid, new Vector2(lp - 209f, -537f), new Vector2(112f, 112f));
-            UiKit.Anchor(_rtLb,   mid, mid, new Vector2(907f, 473f), new Vector2(120f, 120f));
-            UiKit.Anchor(_rtGear, mid, mid, new Vector2(1058f, 473f), new Vector2(120f, 120f));
+            UiKit.Anchor(_rtBack, mid, mid, new Vector2(lp - 178f, -481f), new Vector2(114f, 114f));
+            UiKit.Anchor(_rtLb,   mid, mid, new Vector2(813f, 424f), new Vector2(118f, 118f));
+            UiKit.Anchor(_rtGear, mid, mid, new Vector2(949f, 424f), new Vector2(118f, 118f));
 
             // Левая панель: счётчики сверху, под ними — легенда зверей 4×2.
-            UiKit.Anchor(_rtPillL, mid, mid, new Vector2(lp - 124f, 445f), new Vector2(236f, 122f));
-            UiKit.Anchor(_rtPillR, mid, mid, new Vector2(lp + 124f, 445f), new Vector2(236f, 122f));
+            UiKit.Anchor(_rtPillL, mid, mid, new Vector2(lp - 110f, 400f), new Vector2(208f, 144f));
+            UiKit.Anchor(_rtPillR, mid, mid, new Vector2(lp + 110f, 400f), new Vector2(208f, 144f));
+            _tLevel.fontSize = _tShots.fontSize = 63f;
+            _capPillL.fontSize = _capPillR.fontSize = 23f;
 
             _capColors.gameObject.SetActive(true);
-            UiKit.Anchor(_capColors.rectTransform, mid, new Vector2(0f, C),
-                new Vector2(lp - 237f, 274f), new Vector2(420f, 40f));
+            _capColors.fontSize = 25f;
+            UiKit.Anchor(_capColors.rectTransform, mid, new Vector2(0f, 0.5f),
+                new Vector2(lp - 204f, 246f), new Vector2(420f, 40f));
 
             // Полоска-подложка не нужна: зверей держат собственные белые диски. Тень гасим
             // отдельно — иначе от прозрачной панели остаётся бежевый призрак.
             _stripBg.color = new Color(1f, 1f, 1f, 0f);
-            UiKit.Anchor(_rtStrip, mid, mid, new Vector2(lp, 128f), new Vector2(560f, 300f));
+            UiKit.Anchor(_rtStrip, mid, mid, new Vector2(lp - 10f, 120f), new Vector2(520f, 230f));
             UiKit.SetShadowVisible(_rtStrip, false);
             for (int i = 0; i < 8; i++)
             {
                 _slotDisc[i].color = White;
                 UiKit.Anchor(_slotRt[i], mid, mid,
-                    new Vector2((i % 4 - 1.5f) * 117f, i < 4 ? 67f : -67f), new Vector2(104f, 104f));
-                UiKit.Anchor((RectTransform)_slotImg[i].transform, mid, mid, Vector2.zero, new Vector2(86f, 86f));
+                    new Vector2((i % 4 - 1.5f) * 105f, i < 4 ? 55f : -54f), new Vector2(92f, 92f));
+                UiKit.Anchor((RectTransform)_slotImg[i].transform, mid, mid, Vector2.zero, new Vector2(76f, 76f));
                 // Бейдж «Ур.N» есть только у слотов 3..7 — первые три зверя открыты сразу.
                 if (_slotLock[i] != null)
                     UiKit.Anchor((RectTransform)_slotLock[i].transform, mid, mid,
-                        new Vector2(0f, -38f), new Vector2(74f, 34f));
+                        new Vector2(0f, -34f), new Vector2(66f, 30f));
             }
 
             // Правая панель: бонусы крупно, друг под другом.
-            const float D = 224f;
+            const float D = 201f;
             SizeBonus(_rtRainbow, _rainbowIcon, rainbowAd, _rainbowCountBadge, _rainbowLock, D);
             SizeBonus(_rtBomb,    _bombIcon,    bombAd,    _bombCountBadge,    _bombLock,    D);
             UiKit.Anchor(_rtRainbow, mid, mid, new Vector2(rp, 76f),   new Vector2(D, D));
-            UiKit.Anchor(_rtBomb,    mid, mid, new Vector2(rp, -201f), new Vector2(D, D));
+            UiKit.Anchor(_rtBomb,    mid, mid, new Vector2(rp, -175f), new Vector2(D, D));
+            _adTxtRainbow.fontSize = _adTxtBomb.fontSize = 34f;
 
             _capRainbow.gameObject.SetActive(true);
             _capBomb.gameObject.SetActive(true);
-            UiKit.Anchor(_capRainbow.rectTransform, mid, mid, new Vector2(rp, -63f),  new Vector2(300f, 36f));
-            UiKit.Anchor(_capBomb.rectTransform,    mid, mid, new Vector2(rp, -340f), new Vector2(300f, 36f));
+            _capRainbow.fontSize = _capBomb.fontSize = 23f;
+            UiKit.Anchor(_capRainbow.rectTransform, mid, mid, new Vector2(rp, -50f),  new Vector2(300f, 34f));
+            UiKit.Anchor(_capBomb.rectTransform,    mid, mid, new Vector2(rp, -310f), new Vector2(300f, 34f));
         }
 
         void BuildTopBar()
@@ -287,11 +300,11 @@ namespace CozyAnimalTown
             lbIcon.sprite = IconFactory.Get("leaderboard", Brown);
             _rtLb = (RectTransform)lb.transform;
 
-            _tLevel = BuildStatPill(new Vector2(-124f, -150f), Loc.T("LEVEL", "УРОВЕНЬ"), out _rtPillL);
-            _tShots = BuildStatPill(new Vector2( 124f, -150f), Loc.T("SHOTS", "ВЫСТРЕЛЫ"), out _rtPillR);
+            _tLevel = BuildStatPill(new Vector2(-124f, -150f), Loc.T("LEVEL", "УРОВЕНЬ"), out _rtPillL, out _capPillL);
+            _tShots = BuildStatPill(new Vector2( 124f, -150f), Loc.T("SHOTS", "ВЫСТРЕЛЫ"), out _rtPillR, out _capPillR);
         }
 
-        TMP_Text BuildStatPill(Vector2 pos, string caption, out RectTransform rt)
+        TMP_Text BuildStatPill(Vector2 pos, string caption, out RectTransform rt, out TMP_Text capOut)
         {
             var pill = UiKit.Pill(root, new Vector2(0.5f, 1f), pos, new Vector2(228f, 100f), White);
             rt = pill.rectTransform;
@@ -308,6 +321,7 @@ namespace CozyAnimalTown
             cap.rectTransform.anchorMax = new Vector2(1f, 0.32f);
             cap.rectTransform.offsetMin = new Vector2(0f, 8f);
             cap.rectTransform.offsetMax = Vector2.zero;
+            capOut = cap;
             return val;
         }
 
@@ -399,10 +413,9 @@ namespace CozyAnimalTown
                 new Vector2(2f, 8f), new Vector2(118f, 54f));
             var adTxt = UiKit.Label(ad.transform, AdLoc.RefillBadge, 26, TextAnchor.MiddleCenter, White);
             adTxt.fontStyle = FontStyles.Bold;
-            adTxt.enableAutoSizing = true;
-            adTxt.fontSizeMin = 18; adTxt.fontSizeMax = 26;
             UiKit.Stretch(adTxt.rectTransform);
             adBadge = ad.gameObject;
+            if (specialId == GameConfig.BombId) _adTxtBomb = adTxt; else _adTxtRainbow = adTxt;
 
             var lockB = UiKit.Panel(holder, BadgeDark, false);
             UiKit.Anchor(lockB.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),

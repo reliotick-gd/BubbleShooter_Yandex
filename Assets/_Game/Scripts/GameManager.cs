@@ -623,6 +623,18 @@ namespace CozyAnimalTown
             float top    = cfg.topRowY + cfg.CellSize * 1.3f;
             float bottom = cfg.shooterY - cfg.Diameter * 0.7f;
 
+            // Мягкая тень под картой — без неё карта не «лежит» на фоне, а сливается с ним
+            // (заметно с тех пор, как поля перестали быть плоской заливкой).
+            var shadowGo = new GameObject("BoardPanelShadow");
+            shadowGo.transform.SetParent(transform);
+            shadowGo.transform.position = new Vector3(0f, (top + bottom) * 0.5f - 0.10f, 1f);
+            var shadow = shadowGo.AddComponent<SpriteRenderer>();
+            shadow.sprite       = UiKit.RoundBoardSprite;
+            shadow.drawMode     = SpriteDrawMode.Sliced;
+            shadow.size         = new Vector2(halfW * 2f + 0.18f, top - bottom + 0.18f);
+            shadow.color        = new Color(0.42f, 0.34f, 0.27f, 0.13f);
+            shadow.sortingOrder = -11;
+
             var go = new GameObject("BoardPanel");
             go.transform.SetParent(transform);
             go.transform.position = new Vector3(0f, (top + bottom) * 0.5f, 1f);
@@ -630,8 +642,8 @@ namespace CozyAnimalTown
             sr.sprite       = UiKit.RoundBoardSprite;
             sr.drawMode     = SpriteDrawMode.Sliced;
             sr.size         = new Vector2(halfW * 2f, top - bottom);
-            sr.color        = Color.white;
-            sr.sortingOrder = -10;   // за пузырями (1), пушкой (3), но над крем-фоном
+            sr.color        = new Color(0.992f, 0.988f, 0.976f);   // тёплый белый, как в макете
+            sr.sortingOrder = -10;   // за пузырями (1), пушкой (3), но над фоном
         }
 
         void SaveProgress() => CloudSave.Save(currentLevel);
