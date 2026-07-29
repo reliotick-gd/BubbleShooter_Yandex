@@ -24,6 +24,8 @@ namespace CozyAnimalTown
         public const string Menu  = "<sprite name=\"menu\" tint=1>";
         public const string Arrow = "<sprite name=\"arrow\" tint=1>";
         public const string Bolt  = "<sprite name=\"bolt\" tint=1>";
+        /// <summary>Режиссёрская хлопушка — маркер «сейчас будет ролик» на кнопках rewarded.</summary>
+        public const string Clap  = "<sprite name=\"clap\" tint=1>";
 
         const int Cell = 64;
         const int SS   = 4;         // супер-сэмплинг для сглаживания краёв
@@ -51,6 +53,7 @@ namespace CozyAnimalTown
             ("menu",       Color.white, Color.white, InMenu),
             ("arrow",      Color.white, Color.white, InArrow),
             ("bolt",       Color.white, Color.white, InBolt),
+            ("clap",       Color.white, Color.white, InClap),
         };
 
         static void Build()
@@ -255,6 +258,33 @@ namespace CozyAnimalTown
         static readonly float[] BoltX = { 0.10f, -0.52f, -0.08f, -0.28f, 0.52f, 0.08f };
         static readonly float[] BoltY = { 0.92f,  0.05f,  0.05f, -0.92f, 0.12f, 0.12f };
         static bool InBolt(float x, float y) => PointInPoly(x, y, BoltX, BoltY);
+
+        /// <summary>
+        /// Режиссёрская хлопушка: корпус-прямоугольник снизу + откинутая планка сверху
+        /// с косыми полосами. Однозначно читается как «видео», в отличие от голого
+        /// треугольника — п.4.5.1 требует, чтобы игрок понимал, что будет реклама.
+        /// </summary>
+        static bool InClap(float x, float y)
+        {
+            const float L = -0.70f, R = 0.70f;
+
+            // корпус
+            if (x >= L && x <= R && y >= -0.62f && y <= 0.12f)
+            {
+                // две светлые «ножки»-прорези внизу не рисуем — на 64px они замылятся
+                return true;
+            }
+
+            // планка: наклонена, поэтому её нижняя и верхняя границы зависят от x
+            float tilt = 0.16f;
+            float bot  = 0.20f + tilt * x;
+            float top  = 0.52f + tilt * x;
+            if (x < L || x > R || y < bot || y > top) return false;
+
+            // косые полосы: вырезаем каждую вторую диагональ
+            float s = (x - y * 0.5f) * 4.2f;
+            return Mathf.Repeat(s, 2f) < 1.15f;
+        }
 
         static bool PointInPoly(float x, float y, float[] vx, float[] vy)
         {

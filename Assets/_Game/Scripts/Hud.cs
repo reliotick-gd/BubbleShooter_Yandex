@@ -24,7 +24,6 @@ namespace CozyAnimalTown
 
         // Украшения только для десктопной раскладки — в портрете для них нет места.
         TMP_Text _capColors, _capRainbow, _capBomb;
-        RectTransform _sideMascot;
 
         GameObject resultRoot, winGroup, loseGroup, pauseRoot;
         TMP_Text titleText, _loseCount;
@@ -113,9 +112,6 @@ namespace CozyAnimalTown
             _capRainbow.fontStyle = FontStyles.Bold;
             _capBomb = UiKit.Label(stage, Loc.T("BOMB", "БОМБА"), 24, TextAnchor.MiddleCenter, BrownSoft);
             _capBomb.fontStyle = FontStyles.Bold;
-
-            _sideMascot = MakeMascot(stage, "Mascots/cat_3x4", new Vector2(420f, 596f),
-                Vector2.zero, Color.white, true);
         }
 
         /// <summary>
@@ -173,7 +169,6 @@ namespace CozyAnimalTown
             _capColors.gameObject.SetActive(false);
             _capRainbow.gameObject.SetActive(false);
             _capBomb.gameObject.SetActive(false);
-            if (_sideMascot) _sideMascot.gameObject.SetActive(false);
         }
 
         /// <summary>Подгоняет иконку бонуса и его бейджи под диаметр кнопки.</summary>
@@ -233,14 +228,6 @@ namespace CozyAnimalTown
                     new Vector2(((i & 1) - 0.5f) * 190f, 92f - (i >> 1) * 122f), new Vector2(104f, 104f));
                 UiKit.Anchor((RectTransform)_slotImg[i].transform, new Vector2(0.5f, 0.5f),
                     new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(86f, 86f));
-            }
-
-            // Маскот внизу левой панели — он же встречает на экране победы, узнаваемый образ.
-            if (_sideMascot)
-            {
-                _sideMascot.gameObject.SetActive(true);
-                UiKit.Anchor(_sideMascot, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                    new Vector2(-panel + 20f, 40f), new Vector2(332f, 470f));
             }
 
             // Правая панель: бонусы крупно, друг под другом — рядом встаёт бейдж «▶ +3».
