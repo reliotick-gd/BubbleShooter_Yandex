@@ -60,8 +60,9 @@ namespace CozyAnimalTown
                 var img = go.AddComponent<Image>();
 
                 // Нейтральное боке, а НЕ шарики-зверята: мордочки из игры на фоне спорят
-                // с доской и читаются как мусор. GlowSprite — мягкое радиальное пятно.
-                img.sprite = UiKit.GlowSprite;
+                // с доской и читаются как мусор. Круг с чёткой границей, а не размытый
+                // glow: на референсе пятна читаются как круги, размытие давало «муть».
+                img.sprite = SpriteFactory.Circle();
                 img.raycastTarget = false;
 
                 // Детерминированный «псевдослучай» от индекса: одинаковая раскладка при
@@ -71,11 +72,14 @@ namespace CozyAnimalTown
                 float r3 = Frac(i * 0.7548776f + 0.11f);
 
                 // Пастель: цвет палитры, разбавленный до фона, и очень низкая альфа.
-                Color c = Color.Lerp(pal[i % pal.Length], Color.white, 0.42f);
-                c.a = Mathf.Lerp(0.22f, 0.38f, r3);
+                // Тёплая выборка палитры: яркий голубой (индекс 3) в фоне читался холодным
+                // пятном и выбивался из кремовой гаммы игры.
+                int[] warm = { 1, 0, 5, 4, 2, 7 };
+                Color c = Color.Lerp(pal[warm[i % warm.Length]], Color.white, 0.62f);
+                c.a = Mathf.Lerp(0.30f, 0.55f, r3);
                 img.color = c;
 
-                float size = Mathf.Lerp(210f, 470f, r1);
+                float size = Mathf.Lerp(240f, 520f, r1);
                 img.rectTransform.sizeDelta = new Vector2(size, size);
 
                 _float[i] = new Floater
@@ -210,7 +214,9 @@ namespace CozyAnimalTown
                         float dy = v - b.y;
                         float d  = Mathf.Sqrt(dx * dx + dy * dy) / b.z;
                         if (d >= 1f) continue;
-                        float k = (1f - d) * (1f - d) * 0.32f;         // мягкий спад
+                        // Слабо: основной цвет дают дрейфующие круги поверх, текстура —
+                        // только тёплая подложка с градиентом и холмами.
+                        float k = (1f - d) * (1f - d) * 0.10f;
                         c = Color.Lerp(c, cfg.palette[(int)b.w], k);
                     }
 

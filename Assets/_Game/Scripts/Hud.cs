@@ -159,6 +159,9 @@ namespace CozyAnimalTown
                     new Vector2((i - 3.5f) * 120f, 0f), new Vector2(78f, 78f));
                 UiKit.Anchor((RectTransform)_slotImg[i].transform, new Vector2(0.5f, 0.5f),
                     new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(78f, 78f));
+                if (_slotLock[i] != null)
+                    UiKit.Anchor((RectTransform)_slotLock[i].transform, new Vector2(0.5f, 0.5f),
+                        new Vector2(0.5f, 0.5f), new Vector2(0f, -27f), new Vector2(58f, 28f));
             }
 
             SizeBonus(_rtRainbow, _rainbowIcon, rainbowAd, _rainbowCountBadge, _rainbowLock, 128f);
@@ -174,74 +177,97 @@ namespace CozyAnimalTown
         /// <summary>Подгоняет иконку бонуса и его бейджи под диаметр кнопки.</summary>
         void SizeBonus(RectTransform btn, Image icon, GameObject ad, GameObject count, GameObject lockB, float d)
         {
+            // 0.78, а не «на весь кружок»: белое кольцо-подложка должно читаться,
+            // иначе бонус сливается с фоном и теряет вид кнопки.
             UiKit.Anchor((RectTransform)icon.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                Vector2.zero, new Vector2(d * 0.92f, d * 0.92f));
+                Vector2.zero, new Vector2(d * 0.78f, d * 0.78f));
 
             // Бейдж «▶ Реклама +3» шире кнопки, поэтому в портрете он встаёт НАД кружком:
             // сбоку два бонуса стоят в 200 единицах друг от друга и бейджи бы пересеклись.
             // В широкой раскладке кнопки друг под другом — там бейдж ложится справа сверху.
             float k = d / 128f;
             if (ScreenColumn.IsWide)
+            {
+                // Бейдж лежит на верхнем правом краю кружка. Ширина — ровно под «🎬 AD +3»,
+                // не растянутая плашка: пустое поле вокруг короткого текста выглядит дёшево.
                 UiKit.Anchor((RectTransform)ad.transform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
-                    new Vector2(8f * k, -10f * k), new Vector2(200f * k, 56f * k));
+                    new Vector2(-d * 0.05f, -d * 0.10f), new Vector2(d * 0.60f, d * 0.28f));
+                UiKit.Anchor((RectTransform)count.transform, new Vector2(1f, 0f), new Vector2(0.5f, 0.5f),
+                    new Vector2(-d * 0.143f, d * 0.152f), new Vector2(d * 0.25f, d * 0.25f));
+            }
             else
+            {
+                // В портрете бонусы стоят в 200 единицах друг от друга — бейдж уходит НАД
+                // кружок, иначе два бейджа пересекаются.
                 UiKit.Anchor((RectTransform)ad.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f),
-                    new Vector2(0f, 16f * k), new Vector2(196f * k, 54f * k));
-            UiKit.Anchor((RectTransform)count.transform, new Vector2(1f, 0f), new Vector2(0.5f, 0.5f),
-                new Vector2(-14f * k, 12f * k), new Vector2(52f * k, 52f * k));
+                    new Vector2(0f, 16f * k), new Vector2(140f * k, 52f * k));
+                UiKit.Anchor((RectTransform)count.transform, new Vector2(1f, 0f), new Vector2(0.5f, 0.5f),
+                    new Vector2(-14f * k, 12f * k), new Vector2(52f * k, 52f * k));
+            }
             UiKit.Anchor((RectTransform)lockB.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(0f, -36f * k), new Vector2(86f * k, 44f * k));
         }
 
+        // Координаты широкой раскладки — абсолютные в дизайн-пространстве. В широком режиме
+        // ScreenColumn.Aspect фиксирован (0.82), значит ColumnFitter.DesignHeight всегда 1317,
+        // и Y можно задавать числами: они не поедут от формы экрана. Значения сняты с
+        // утверждённого референса (1920×1080, масштаб 0.82).
         void WideLayout()
         {
             Reparent(_rtBack, stage); Reparent(_rtGear, stage); Reparent(_rtLb, stage);
             Reparent(_rtPillL, stage); Reparent(_rtPillR, stage); Reparent(_rtStrip, stage);
             Reparent(_rtRainbow, stage); Reparent(_rtBomb, stage);
 
-            // Центры боковых панелей — между краем колонки (540) и краем экрана.
-            float half  = StageFitter.HalfWidth;
-            float panel = (half + ColumnFitter.DesignW * 0.5f) * 0.5f;
+            // Центры боковых панелей. Смещения +40/+35 подогнаны по референсу: панели
+            // чуть ближе к доске, чем геометрический центр поля.
+            float half = StageFitter.HalfWidth;
+            float lp   = -(half + ColumnFitter.DesignW * 0.5f) * 0.5f + 40f;
+            float rp   =  (half + ColumnFitter.DesignW * 0.5f) * 0.5f + 35f;
+
+            const float C = 0.5f;
+            var mid = new Vector2(C, C);
 
             // Стрелка «назад» — в нижний угол, подальше от бонусов и настроек.
-            UiKit.Anchor(_rtBack, new Vector2(0f, 0f), new Vector2(0.5f, 0.5f), new Vector2(120f, 100f), new Vector2(112f, 112f));
-            UiKit.Anchor(_rtLb,   new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-244f, -76f), new Vector2(120f, 120f));
-            UiKit.Anchor(_rtGear, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-104f, -76f), new Vector2(120f, 120f));
+            UiKit.Anchor(_rtBack, mid, mid, new Vector2(lp - 209f, -537f), new Vector2(112f, 112f));
+            UiKit.Anchor(_rtLb,   mid, mid, new Vector2(907f, 473f), new Vector2(120f, 120f));
+            UiKit.Anchor(_rtGear, mid, mid, new Vector2(1058f, 473f), new Vector2(120f, 120f));
 
-            // Левая панель: счётчики сверху, под ними — легенда зверей в две колонки.
-            UiKit.Anchor(_rtPillL, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-panel - 124f, -170f), new Vector2(236f, 116f));
-            UiKit.Anchor(_rtPillR, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-panel + 124f, -170f), new Vector2(236f, 116f));
+            // Левая панель: счётчики сверху, под ними — легенда зверей 4×2.
+            UiKit.Anchor(_rtPillL, mid, mid, new Vector2(lp - 124f, 445f), new Vector2(236f, 122f));
+            UiKit.Anchor(_rtPillR, mid, mid, new Vector2(lp + 124f, 445f), new Vector2(236f, 122f));
 
             _capColors.gameObject.SetActive(true);
-            UiKit.Anchor(_capColors.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, 0.5f),
-                new Vector2(-panel - 242f, -272f), new Vector2(420f, 40f));
+            UiKit.Anchor(_capColors.rectTransform, mid, new Vector2(0f, C),
+                new Vector2(lp - 237f, 274f), new Vector2(420f, 40f));
 
-            // Полоска-подложка не нужна: в две колонки зверей держат собственные белые диски.
-            // Тень гасим отдельно — иначе от прозрачной панели остаётся бежевый призрак.
+            // Полоска-подложка не нужна: зверей держат собственные белые диски. Тень гасим
+            // отдельно — иначе от прозрачной панели остаётся бежевый призрак.
             _stripBg.color = new Color(1f, 1f, 1f, 0f);
-            UiKit.Anchor(_rtStrip, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-panel, -450f), new Vector2(500f, 300f));
+            UiKit.Anchor(_rtStrip, mid, mid, new Vector2(lp, 128f), new Vector2(560f, 300f));
             UiKit.SetShadowVisible(_rtStrip, false);
             for (int i = 0; i < 8; i++)
             {
                 _slotDisc[i].color = White;
-                UiKit.Anchor(_slotRt[i], new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                    new Vector2(((i & 1) - 0.5f) * 190f, 92f - (i >> 1) * 122f), new Vector2(104f, 104f));
-                UiKit.Anchor((RectTransform)_slotImg[i].transform, new Vector2(0.5f, 0.5f),
-                    new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(86f, 86f));
+                UiKit.Anchor(_slotRt[i], mid, mid,
+                    new Vector2((i % 4 - 1.5f) * 117f, i < 4 ? 67f : -67f), new Vector2(104f, 104f));
+                UiKit.Anchor((RectTransform)_slotImg[i].transform, mid, mid, Vector2.zero, new Vector2(86f, 86f));
+                // Бейдж «Ур.N» есть только у слотов 3..7 — первые три зверя открыты сразу.
+                if (_slotLock[i] != null)
+                    UiKit.Anchor((RectTransform)_slotLock[i].transform, mid, mid,
+                        new Vector2(0f, -38f), new Vector2(74f, 34f));
             }
 
-            // Правая панель: бонусы крупно, друг под другом — рядом встаёт бейдж «▶ +3».
-            SizeBonus(_rtRainbow, _rainbowIcon, rainbowAd, _rainbowCountBadge, _rainbowLock, 168f);
-            SizeBonus(_rtBomb,    _bombIcon,    bombAd,    _bombCountBadge,    _bombLock,    168f);
-            UiKit.Anchor(_rtRainbow, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(panel, 190f), new Vector2(168f, 168f));
-            UiKit.Anchor(_rtBomb,    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(panel, -110f), new Vector2(168f, 168f));
+            // Правая панель: бонусы крупно, друг под другом.
+            const float D = 224f;
+            SizeBonus(_rtRainbow, _rainbowIcon, rainbowAd, _rainbowCountBadge, _rainbowLock, D);
+            SizeBonus(_rtBomb,    _bombIcon,    bombAd,    _bombCountBadge,    _bombLock,    D);
+            UiKit.Anchor(_rtRainbow, mid, mid, new Vector2(rp, 76f),   new Vector2(D, D));
+            UiKit.Anchor(_rtBomb,    mid, mid, new Vector2(rp, -201f), new Vector2(D, D));
 
             _capRainbow.gameObject.SetActive(true);
             _capBomb.gameObject.SetActive(true);
-            UiKit.Anchor(_capRainbow.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(panel, 190f - 122f), new Vector2(300f, 36f));
-            UiKit.Anchor(_capBomb.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(panel, -110f - 122f), new Vector2(300f, 36f));
+            UiKit.Anchor(_capRainbow.rectTransform, mid, mid, new Vector2(rp, -63f),  new Vector2(300f, 36f));
+            UiKit.Anchor(_capBomb.rectTransform,    mid, mid, new Vector2(rp, -340f), new Vector2(300f, 36f));
         }
 
         void BuildTopBar()
