@@ -32,7 +32,6 @@ namespace CozyAnimalTown
         GameObject _midOfferBtn;          // оффер «+5 выстрелов» во время игры
         RectTransform _rtMidOffer;
         GameObject dailyRoot;             // модалка ежедневного подарка
-        TMP_Text _winScore;               // счёт на экране победы
         readonly TMP_Text[] _winStars = new TMP_Text[3];
 
         GameObject resultRoot, winGroup, loseGroup, pauseRoot;
@@ -580,12 +579,6 @@ namespace CozyAnimalTown
                 _winStars[i] = star;
             }
 
-            _winScore = UiKit.Label(winGroup.transform, "", 44, TextAnchor.MiddleCenter, White);
-            _winScore.fontStyle = FontStyles.Bold;
-            ApplyOutline(_winScore, new Color(0.30f, 0.18f, 0.06f), 0.20f);
-            UiKit.Anchor(_winScore.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0f, -290f), new Vector2(920f, 60f));
-
             _winSub = UiKit.Label(winGroup.transform, _winSubs[0], 42,
                 TextAnchor.MiddleCenter, new Color(1f, 0.9f, 0.5f));
             _winSub.fontStyle = FontStyles.Bold;
@@ -1098,10 +1091,6 @@ namespace CozyAnimalTown
                     int stars = gm.LastStars;
                     for (int i = 0; i < 3; i++)
                         _winStars[i].text = i < stars ? UiSymbols.Star : UiSymbols.StarO;
-
-                    bool record = gm.LevelScore >= Progress.BestScoreOf(gm.CurrentLevel);
-                    _winScore.text = AdLoc.ScoreWord + "  " + gm.LevelScore
-                        + (record ? "   <size=70%>" + AdLoc.RecordWord + "</size>" : "");
 
                     StartCoroutine(PlayWinIntro());
                 }

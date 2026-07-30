@@ -35,10 +35,9 @@ namespace CozyAnimalTown
         public static string MidLevelBtn =>
             UiSymbols.Clap + " AD  +" + GameManager.MidLevelShots + " " + Shots(GameManager.MidLevelShots);
 
-        // Экран победы и ежедневный подарок.
-        public static string ScoreWord  => Loc.T("Score", "Счёт");
-        public static string RecordWord => Loc.T("New best!", "Новый рекорд!");
-
+        // Ежедневный подарок. Счёт на экране победы не показываем: строка «Счёт N —
+        // новый рекорд» лезла на маскота и обещала соревнование там, где его нет.
+        // Очки продолжают копиться и уходят в лидерборд (Progress → CloudSave).
         public static string DailyTitle  => Loc.T("Daily gift", "Ежедневный подарок");
         public static string DailyReward
         {
