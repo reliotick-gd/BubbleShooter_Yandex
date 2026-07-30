@@ -30,6 +30,10 @@ namespace CozyAnimalTown
             PlayerPrefs.SetInt("cat_seen_rock", 1);
             PlayerPrefs.SetInt("cat_rainbow", 5);
             PlayerPrefs.SetInt("cat_bomb", 0);
+            // Подарок за «сегодня» уже забран — иначе он перекрыл бы кадр геймплея.
+            // Для съёмки самой модалки есть флаг -daily.
+            PlayerPrefs.SetString("cat_daily",
+                Arg("-daily") != null ? "" : System.DateTime.UtcNow.ToString("yyyyMMdd"));
             PlayerPrefs.Save();
 
             var go = new GameObject("AutoShot");
@@ -105,8 +109,38 @@ namespace CozyAnimalTown
                     yield return Capture(second);
                 }
 
+                // Оффер «+5 выстрелов» показывается только при остатке ≤ 2. Дожать его
+                // честной стрельбой нельзя, поэтому правим приватное поле рефлексией —
+                // файл всё равно только для development-сборки.
+                string midShot = Arg("-shotmid");
+                if (!string.IsNullOrEmpty(midShot) && gm != null)
+                {
+                    SetPrivate(gm, "shotsLeft", 2);
+                    yield return new WaitForSecondsRealtime(0.6f);
+                    yield return Capture(midShot);
+                }
+
+                // Экран победы: выставляем состояние напрямую, чтобы снять вёрстку звёзд
+                // и счёта, не проходя уровень целиком.
+                string winShot = Arg("-shotwin");
+                if (!string.IsNullOrEmpty(winShot) && gm != null)
+                {
+                    SetPrivate(gm, "_levelScore", 4830);
+                    SetPrivate(gm, "_lastStars", 3);
+                    SetPrivate(gm, "<State>k__BackingField", GameState.Win);
+                    yield return new WaitForSecondsRealtime(2.2f);
+                    yield return Capture(winShot);
+                }
+
                 yield return new WaitForSecondsRealtime(0.5f);
                 Application.Quit(0);
+            }
+
+            static void SetPrivate(object target, string field, object value)
+            {
+                var f = target.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic);
+                if (f != null) f.SetValue(target, value);
+                else Debug.LogWarning($"[AutoShot] нет поля {field}");
             }
 
             // Модуль screencapture из manifest.json выпилен ради веса билда, поэтому

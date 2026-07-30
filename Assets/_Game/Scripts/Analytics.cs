@@ -119,6 +119,18 @@ namespace CozyAnimalTown
         public static void BonusRefillOffer(string type, int level) =>
             Send("bonus_refill_offer", $"{{\"type\":\"{Esc(type)}\",\"level\":{level}}}");
 
+        /// <summary>Показан оффер «+N выстрелов» прямо в игре (выстрелы на исходе).</summary>
+        public static void MidLevelOffered(int level) =>
+            Send("midlevel_offer_shown", $"{{\"level\":{level}}}");
+
+        /// <summary>Забран ежедневный подарок — ключевая метрика возвращаемости.</summary>
+        public static void DailyClaimed(int level) =>
+            Send("daily_bonus_claimed", $"{{\"level\":{level}}}");
+
+        /// <summary>Уровень пройден: счёт и звёзды за попытку.</summary>
+        public static void LevelScored(int level, int score, int stars) =>
+            Send("level_scored", $"{{\"level\":{level},\"score\":{score},\"stars\":{stars}}}");
+
         public static void OnboardingShown() =>
             Send("onboarding_shown", "{}");
 

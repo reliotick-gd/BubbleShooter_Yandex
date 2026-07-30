@@ -82,7 +82,7 @@ UNITY_WEBGL&&!UNITY_EDITOR). НЕ сделано: страница игры в �
 
 ### Compile-check (Git Bash, dotnet v10)
 ```bash
-cd "E:/GameDev/Unity/Projects/Bubble_shooter_animal_YandexGames"
+cd "E:/GameDev/Unity/Projects/BubbleShooter_Yandex"
 grep -v "<Compile Include" Assembly-CSharp.csproj | grep -v "</Project>" > _verify.csproj
 printf '  <ItemGroup>\n    <Compile Include="Assets/**/*.cs" />\n  </ItemGroup>\n</Project>\n' >> _verify.csproj
 "/c/Program Files/dotnet/dotnet" build _verify.csproj -nologo -v:m -p:IntermediateOutputPath=Temp/verify_obj/ -p:OutputPath=Temp/verify_bin/ 2>&1 | grep -Ei "error|успешно|Ошибок|warning CS"
@@ -176,7 +176,37 @@ pagehide → session_end. ProjectSettings: `webGLTemplate: PROJECT:YandexGames`.
 ## 6. PlayerPrefs-ключи
 `cat_level` (прогресс), `cat_bomb`/`cat_rainbow` (заряды), `cat_onboarded`,
 `cat_seen_{ice,slime,rock}` (подсказки), `cat_endless_sent` (аналитика 31-го уровня),
-`cat_muted` (тумблер звука), `cat_save_ver` (=5, миграция). Все записи — сразу с `PlayerPrefs.Save()`.
+`cat_muted` (тумблер звука), `cat_save_ver` (=5, миграция),
+`cat_best` (рекорды по уровням, строка «ур:счёт:звёзды;…» — см. `Progress`),
+`cat_daily` (день последнего подарка, «ггггММдд» по UTC — см. `DailyBonus`).
+Все записи — сразу с `PlayerPrefs.Save()`.
+
+## 6a. Что добавлено после правок по модерации (30.07.2026)
+- **Десктопная раскладка.** `ScreenColumn.WideAspect = 0.915` (посчитан так, чтобы карта
+  поля на 1920×1080 была 939×968 — как на утверждённом макете). На широком экране вьюпорт
+  основной камеры растянут на ВЕСЬ кадр, а HUD уезжает в боковые панели (`StageFitter`,
+  `Hud.ApplyResponsiveLayout`). Портретная вёрстка не менялась.
+  Фон полей — `CozyBackdrop` (мировые спрайты, рисует основная камера). Оверлейный канвас
+  и отдельная фоновая камера тут НЕ работают: первый всегда поверх вывода камеры, вторая
+  под URP всё равно чистит свой вьюпорт — в обоих случаях на границах колонки были швы.
+- **Счёт и звёзды** (`Progress`): в лидерборд уходит сумма лучших результатов, а не номер
+  уровня. Рекорды и заряды бустеров роумятся через `CloudSave` (поля `best/bomb/rainbow`).
+- **Мид-левел оффер** `+5 выстрелов` за rewarded при остатке ≤ 2 (плейсмент `midlevel_shots`).
+  Кнопка обязана жить ВНЕ игрового поля, иначе игрок задевает её, целясь.
+- **Ежедневный подарок** (`DailyBonus`): +2 радуги, +2 бомбы, дата по UTC.
+- Новые цели Метрики: `midlevel_offer_shown`, `daily_bonus_claimed`, `level_scored`.
+
+### Сборка и скриншоты без рук
+`Assets/Editor/CIBuild.cs` + `Assets/_Game/Scripts/AutoShot.cs` (только DEVELOPMENT_BUILD):
+```bash
+"E:/GameDev/Unity/Editors/6000.4.7f1/Editor/Unity.exe" -batchmode -quit -nographics \
+  -projectPath "E:/GameDev/Unity/Projects/BubbleShooter_Yandex" \
+  -executeMethod CozyAnimalTown.EditorTools.CIBuild.BuildWindows -logFile Temp/build.log
+./Builds/Win/BubbleShooter.exe -screen-width 1920 -screen-height 1080 -screen-fullscreen 0 \
+  -shot out.png -shotmid mid.png -shotwin win.png -daily 1 -logFile Temp/p.log
+```
+Модуль `screencapture` из `manifest.json` выпилен ради веса — кадр читается из бэкбуфера
+через `ReadPixels`. Не возвращать модуль ради скриншотов.
 
 ## 7. Что дальше (чек-лист перед релизом)
 1. **Пользователь создаёт игру в консоли Яндекса** (games.yandex — кабинет разработчика):

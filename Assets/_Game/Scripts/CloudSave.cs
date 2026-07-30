@@ -7,6 +7,12 @@ namespace CozyAnimalTown
     public class SaveData
     {
         public int level = 1;
+        // Заряды бустеров тоже роумятся: игрок, купивший их рекламой и сменивший
+        // устройство, иначе терял купленное.
+        public int bomb    = -1;   // −1 = поля не было в старом сейве, не трогаем локальное
+        public int rainbow = -1;
+        // Рекорды по уровням в компактном виде (см. Progress) — от них считается лидерборд.
+        public string best = "";
     }
 
     /// <summary>
@@ -18,6 +24,8 @@ namespace CozyAnimalTown
     {
         const string KeyLevel     = "cat_level";
         const string KeyCloudWipe = "cat_cloud_wipe";
+        const string KeyBomb      = "cat_bomb";
+        const string KeyRainbow   = "cat_rainbow";
 
         public static void Save(int level)
         {
@@ -26,8 +34,18 @@ namespace CozyAnimalTown
             level = Mathf.Max(level, PlayerPrefs.GetInt(KeyLevel, 1));
             PlayerPrefs.SetInt(KeyLevel, level);
             PlayerPrefs.Save();
-            YandexBridge.SaveData(JsonUtility.ToJson(new SaveData { level = level }));
-            YandexBridge.SetLeaderboardScore(level);
+
+            YandexBridge.SaveData(JsonUtility.ToJson(new SaveData
+            {
+                level   = level,
+                bomb    = PlayerPrefs.GetInt(KeyBomb, 0),
+                rainbow = PlayerPrefs.GetInt(KeyRainbow, 0),
+                best    = Progress.Raw,
+            }));
+
+            // В таблицу — сумма лучших результатов, а не номер уровня: по уровню все,
+            // кто добрался до конца, оказывались с одинаковым результатом.
+            YandexBridge.SetLeaderboardScore(Progress.TotalScore);
         }
 
         // Бамп SaveVer стирает локальный прогресс (GameBootstrap), но облако при обычном
@@ -59,7 +77,14 @@ namespace CozyAnimalTown
             int localLevel = PlayerPrefs.GetInt(KeyLevel, 1);
             int level = Mathf.Max(localLevel, cloud.level);
             PlayerPrefs.SetInt(KeyLevel, level);
+
+            // Заряды и рекорды сливаем по максимуму — так пересадка между устройствами
+            // ничего не отнимает. Поля bomb/rainbow = −1 у сейвов старого формата.
+            if (cloud.bomb    >= 0) PlayerPrefs.SetInt(KeyBomb,    Mathf.Max(PlayerPrefs.GetInt(KeyBomb, 0),    cloud.bomb));
+            if (cloud.rainbow >= 0) PlayerPrefs.SetInt(KeyRainbow, Mathf.Max(PlayerPrefs.GetInt(KeyRainbow, 0), cloud.rainbow));
             PlayerPrefs.Save();
+
+            Progress.MergeRaw(cloud.best);
             return level;
         }
     }

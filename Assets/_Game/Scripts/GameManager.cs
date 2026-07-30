@@ -73,6 +73,20 @@ namespace CozyAnimalTown
         public const int RefillAmount      = 3;   // зарядов бомбы/радуги за ролик
         public const int SecondChanceShots = 5;   // выстрелов за «Второй шанс»
         public const int OverflowClearRows = 3;   // рядов снизу, если проиграл по переполнению
+        public const int MidLevelShots     = 5;   // выстрелов за ролик в мид-левел оффере
+
+        // Счёт текущей попытки и звёзды за неё — показывает экран победы.
+        int  _levelScore;
+        int  _lastStars;
+        bool _midOffered;      // оффер «+5 выстрелов» за попытку показываем один раз
+
+        public int  LevelScore => _levelScore;
+        public int  LastStars  => _lastStars;
+
+        /// <summary>Показывать ли кнопку «посмотреть ролик за +5 выстрелов» прямо в игре.</summary>
+        public bool MidLevelOfferVisible =>
+            State == GameState.Aiming && !_midOffered && !_adBusy
+            && shotsLeft > 0 && shotsLeft <= 2 && board != null && board.PoppableCount > 0;
         const string KeyBomb    = "cat_bomb";
         const string KeyRainbow = "cat_rainbow";
         int bombCharges, rainbowCharges;
@@ -278,6 +292,8 @@ namespace CozyAnimalTown
             board.BuildLevel(levelDef);
             RefreshBonusUnlocks();
             shotsLeft  = cfg.startingShots;
+            _levelScore  = 0;
+            _midOffered  = false;
             _combo       = 0;
             _lastPopTime = -999f;
             shooter.ResetQueue();
@@ -407,6 +423,13 @@ namespace CozyAnimalTown
             YandexBridge.ShowRewarded(placement);
         }
 
+        /// <summary>Перечитывает заряды из prefs — после ежедневного подарка и мержа облака.</summary>
+        public void RefreshCharges()
+        {
+            if (RainbowUnlocked) rainbowCharges = PlayerPrefs.GetInt(KeyRainbow, rainbowCharges);
+            if (BombUnlocked)    bombCharges    = PlayerPrefs.GetInt(KeyBomb,    bombCharges);
+        }
+
         /// <summary>Выдаёт стартовые заряды в момент разблокировки бонуса по уровню (радуга — Lv3, бомба — Lv7).</summary>
         void RefreshBonusUnlocks()
         {
@@ -478,6 +501,18 @@ namespace CozyAnimalTown
             BeginRewarded(specialId == GameConfig.BombId ? "refill_bomb" : "refill_rainbow");
         }
 
+        /// <summary>
+        /// Оффер «+5 выстрелов» прямо в игре, когда выстрелов почти не осталось. Ловит
+        /// игрока ДО экрана поражения — там мотивация досмотреть ролик заметно выше.
+        /// Один показ на попытку, чтобы кнопка не мозолила глаза.
+        /// </summary>
+        public void WatchAdForMidLevelShots()
+        {
+            if (_adBusy || !MidLevelOfferVisible) return;
+            _midOffered = true;
+            BeginRewarded("midlevel_shots");
+        }
+
         public void SetPaused(bool value)
         {
             _paused = value;
@@ -495,6 +530,8 @@ namespace CozyAnimalTown
                 if (Time.time - _lastPopTime <= ComboWindow) _combo++;
                 else                                          _combo = 1;
                 _lastPopTime = Time.time;
+                // Комбо — множитель: длинная серия даёт кратно больше, чем те же шары поодиночке.
+                _levelScore += removed * Progress.PointsPerBubble * Mathf.Max(1, _combo);
                 if (_combo >= 2)
                 {
                     ComboDisplay.Instance?.Show(_combo);
@@ -511,6 +548,14 @@ namespace CozyAnimalTown
                 State = GameState.Win;
                 YandexBridge.GameplayStop();
                 shooter.HideProjectile();
+
+                // Неизрасходованные выстрелы — в очки: это и есть стимул играть аккуратно,
+                // а не «дострелять как-нибудь».
+                _levelScore += shotsLeft * Progress.PointsPerShotLeft;
+                _lastStars   = Progress.StarsForShots(shotsLeft, cfg.startingShots);
+                Progress.Submit(currentLevel, _levelScore, _lastStars);
+                Analytics.LevelScored(currentLevel, _levelScore, _lastStars);
+
                 SaveProgress();
                 Analytics.LevelComplete(currentLevel, attemptsThisLevel, shotsLeft,
                     (int)(Time.realtimeSinceStartup - _levelStartTime));
@@ -598,6 +643,11 @@ namespace CozyAnimalTown
                     bombCharges += RefillAmount;
                     PlayerPrefs.SetInt(KeyBomb, bombCharges);
                     PlayerPrefs.Save();
+                    break;
+
+                // Оффер прямо в игре: просто доливаем выстрелы, состояние доски не трогаем.
+                case "midlevel_shots":
+                    shotsLeft += MidLevelShots;
                     break;
 
                 case "refill_rainbow":

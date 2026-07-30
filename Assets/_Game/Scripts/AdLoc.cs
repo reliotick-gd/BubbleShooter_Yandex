@@ -25,6 +25,27 @@ namespace CozyAnimalTown
         public static string RefillBadge =>
             UiSymbols.Clap + " AD +" + GameManager.RefillAmount;
 
+        /// <summary>Оффер прямо в игре, когда выстрелы на исходе.</summary>
+        public static string MidLevelBtn =>
+            UiSymbols.Clap + " AD  " + Loc.T($"+{GameManager.MidLevelShots} shots",
+                                             $"+{GameManager.MidLevelShots} выстрелов");
+
+        // Экран победы и ежедневный подарок.
+        public static string ScoreWord  => Loc.T("Score", "Счёт");
+        public static string RecordWord => Loc.T("New best!", "Новый рекорд!");
+
+        public static string DailyTitle  => Loc.T("Daily gift", "Ежедневный подарок");
+        public static string DailyReward =>
+            Loc.T($"+{DailyBonus.RainbowReward} rainbows and +{DailyBonus.BombReward} bombs",
+                  $"+{DailyBonus.RainbowReward} радуги и +{DailyBonus.BombReward} бомбы");
+        public static string DailyTake => Loc.T("Take it!", "Забрать!");
+
+        /// <summary>«До нового зверя — N уровней» в боковой панели.</summary>
+        public static string NextAnimal(int levels) =>
+            Loc.T($"New animal in {levels} lvl", $"Новый зверь через {levels} ур.");
+
+        public static string AllAnimals => Loc.T("All animals unlocked", "Все зверята открыты");
+
         // Кнопки на экране поражения — награду называем прямо в подписи кнопки.
         // Награда за «второй шанс» зависит от причины проигрыша (см. GameManager.OnRewarded),
         // поэтому подписи две: обещать «+5 выстрелов» при переполнении было бы неправдой.

@@ -27,6 +27,13 @@ namespace CozyAnimalTown
         // Подписи «УРОВЕНЬ»/«ВЫСТРЕЛЫ» внутри пилюль — кегль меняется вместе с раскладкой.
         TMP_Text _capPillL, _capPillR;
         TMP_Text _adTxtRainbow, _adTxtBomb;
+        TMP_Text _capNextAnimal;          // «Новый зверь через N ур.» в боковой панели
+
+        GameObject _midOfferBtn;          // оффер «+5 выстрелов» во время игры
+        RectTransform _rtMidOffer;
+        GameObject dailyRoot;             // модалка ежедневного подарка
+        TMP_Text _winScore;               // счёт на экране победы
+        readonly TMP_Text[] _winStars = new TMP_Text[3];
 
         GameObject resultRoot, winGroup, loseGroup, pauseRoot;
         TMP_Text titleText, _loseCount;
@@ -98,9 +105,81 @@ namespace CozyAnimalTown
             BuildResultPanel();
             BuildPausePanel();
             BuildSideDecor();
+            BuildMidOffer();
+            BuildDailyPanel();
             resultRoot.SetActive(false);
             pauseRoot.SetActive(false);
             ApplyResponsiveLayout();
+
+            // Подарок показываем сразу после входа в игру — до первого выстрела, чтобы
+            // не прерывать партию модалкой.
+            dailyRoot.SetActive(DailyBonus.Available);
+        }
+
+        /// <summary>
+        /// Кнопка «посмотреть ролик за +5 выстрелов», всплывающая под доской, когда
+        /// выстрелов почти не осталось. Живёт в колонке (не в боковой панели): в портрете
+        /// панелей нет, а оффер нужен на обеих раскладках.
+        /// </summary>
+        void BuildMidOffer()
+        {
+            var btn = UiKit.CandyBtn(root, AdLoc.MidLevelBtn, 34, GreenAd, White,
+                () => gm.WatchAdForMidLevelShots());
+            _rtMidOffer = (RectTransform)btn.transform;
+            UiKit.AddShadow(_rtMidOffer, 10f, -6f);
+            _midOfferBtn = btn.gameObject;
+            _midOfferBtn.SetActive(false);
+        }
+
+        void BuildDailyPanel()
+        {
+            dailyRoot = new GameObject("Daily", typeof(RectTransform));
+            dailyRoot.transform.SetParent(modalRoot, false);
+            UiKit.Stretch((RectTransform)dailyRoot.transform);
+            var dim = UiKit.Panel(dailyRoot.transform, new Color(0.07f, 0.06f, 0.09f, 0.72f), true);
+            UiKit.FullScreenDim(dim.rectTransform);
+
+            var box = Card(dailyRoot.transform, Vector2.zero, new Vector2(800f, 660f));
+
+            var title = UiKit.Label(box.transform, AdLoc.DailyTitle, 52, TextAnchor.MiddleCenter, Brown);
+            title.fontStyle = FontStyles.Bold;
+            UiKit.Anchor(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -86f), new Vector2(720f, 70f));
+
+            // Показываем сами бустеры, а не абстрактный «подарок» — понятно, что дают.
+            MakeGiftIcon(box.transform, GameConfig.RainbowId, -110f);
+            MakeGiftIcon(box.transform, GameConfig.BombId,     110f);
+
+            var reward = UiKit.Label(box.transform, AdLoc.DailyReward, 34, TextAnchor.MiddleCenter, BrownSoft);
+            reward.enableAutoSizing = true; reward.fontSizeMin = 26; reward.fontSizeMax = 34;
+            UiKit.Anchor(reward.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -80f), new Vector2(700f, 80f));
+
+            var take = UiKit.CandyBtn(box.transform, AdLoc.DailyTake, 46, Green, White, ClaimDaily);
+            var takeRt = (RectTransform)take.transform;
+            UiKit.Anchor(takeRt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0f, 70f), new Vector2(620f, 136f));
+            UiKit.AddShadow(takeRt, 12f, -7f);
+
+            dailyRoot.SetActive(false);
+        }
+
+        void MakeGiftIcon(Transform parent, int specialId, float x)
+        {
+            var go = new GameObject("Gift", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var img = go.AddComponent<Image>();
+            img.sprite = AnimalSpriteFactory.Get(specialId, Color.white);
+            img.preserveAspect = true; img.raycastTarget = false;
+            UiKit.Anchor(img.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(x, 60f), new Vector2(150f, 150f));
+        }
+
+        void ClaimDaily()
+        {
+            if (DailyBonus.Claim()) Analytics.DailyClaimed(gm.CurrentLevel);
+            dailyRoot.SetActive(false);
+            gm.RefreshCharges();
         }
 
         /// <summary>Подписи и маскот боковых панелей — существуют всегда, но видны
@@ -115,6 +194,19 @@ namespace CozyAnimalTown
             _capRainbow.fontStyle = FontStyles.Bold;
             _capBomb = UiKit.Label(stage, Loc.T("BOMB", "БОМБА"), 24, TextAnchor.MiddleCenter, BrownSoft);
             _capBomb.fontStyle = FontStyles.Bold;
+
+            // Ответ на «сколько мне ещё идти»: легенда показывает, на каком уровне
+            // откроется зверь, но не сколько осталось. Заодно занимает пустое место.
+            _capNextAnimal = UiKit.Label(stage, "", 26, TextAnchor.MiddleCenter, Brown);
+            _capNextAnimal.fontStyle = FontStyles.Bold;
+        }
+
+        /// <summary>Сколько уровней до ближайшего ещё не открытого зверя (0 — все открыты).</summary>
+        int LevelsToNextAnimal()
+        {
+            for (int i = 0; i < UnlockLevel.Length; i++)
+                if (UnlockLevel[i] > gm.CurrentLevel) return UnlockLevel[i] - gm.CurrentLevel;
+            return 0;
         }
 
         /// <summary>
@@ -172,6 +264,11 @@ namespace CozyAnimalTown
                         new Vector2(0.5f, 0.5f), new Vector2(0f, -27f), new Vector2(58f, 28f));
             }
 
+            // Оффер под доской, между картой поля и рядом бонусов — игровое поле не перекрывает.
+            Reparent(_rtMidOffer, root);
+            UiKit.Anchor(_rtMidOffer, new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, 268f), new Vector2(470f, 96f));
+
             SizeBonus(_rtRainbow, _rainbowIcon, rainbowAd, _rainbowCountBadge, _rainbowLock, 128f);
             SizeBonus(_rtBomb,    _bombIcon,    bombAd,    _bombCountBadge,    _bombLock,    128f);
             UiKit.Anchor(_rtRainbow, new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f), new Vector2(-100f, 100f), new Vector2(128f, 128f));
@@ -180,6 +277,7 @@ namespace CozyAnimalTown
             _capColors.gameObject.SetActive(false);
             _capRainbow.gameObject.SetActive(false);
             _capBomb.gameObject.SetActive(false);
+            _capNextAnimal.gameObject.SetActive(false);
         }
 
         /// <summary>Подгоняет иконку бонуса и его бейджи под диаметр кнопки.</summary>
@@ -267,6 +365,15 @@ namespace CozyAnimalTown
                     UiKit.Anchor((RectTransform)_slotLock[i].transform, mid, mid,
                         new Vector2(0f, -34f), new Vector2(66f, 30f));
             }
+
+            _capNextAnimal.gameObject.SetActive(true);
+            UiKit.Anchor(_capNextAnimal.rectTransform, mid, mid,
+                new Vector2(lp - 10f, -80f), new Vector2(500f, 40f));
+
+            // Оффер — в правую панель под «БОМБА». В колонке он лежал бы ПОВЕРХ игрового
+            // поля, и игрок мог задеть его, целясь, — то есть случайно запустить рекламу.
+            Reparent(_rtMidOffer, stage);
+            UiKit.Anchor(_rtMidOffer, mid, mid, new Vector2(rp, -430f), new Vector2(400f, 96f));
 
             // Правая панель: бонусы крупно, друг под другом.
             const float D = 201f;
@@ -451,6 +558,23 @@ namespace CozyAnimalTown
             _winMascotRt = MakeMascot(winGroup.transform, "Mascots/cat_3x4", new Vector2(640f, 910f), new Vector2(0f, 40f), Color.white, false);
             BuildConfetti(winGroup.transform);
             BuildWinWord(winGroup.transform);
+
+            // Звёзды за уровень: сразу видно, прошёл ли с запасом или впритык — повод
+            // перепройти на три звезды.
+            for (int i = 0; i < 3; i++)
+            {
+                var star = UiKit.Label(winGroup.transform, UiSymbols.StarO, 96,
+                    TextAnchor.MiddleCenter, White);
+                UiKit.Anchor(star.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2((i - 1) * 116f, -395f), new Vector2(110f, 110f));
+                _winStars[i] = star;
+            }
+
+            _winScore = UiKit.Label(winGroup.transform, "", 44, TextAnchor.MiddleCenter, White);
+            _winScore.fontStyle = FontStyles.Bold;
+            ApplyOutline(_winScore, new Color(0.30f, 0.18f, 0.06f), 0.20f);
+            UiKit.Anchor(_winScore.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -290f), new Vector2(920f, 60f));
 
             _winSub = UiKit.Label(winGroup.transform, _winSubs[0], 42,
                 TextAnchor.MiddleCenter, new Color(1f, 0.9f, 0.5f));
@@ -838,11 +962,35 @@ namespace CozyAnimalTown
         {
             if (gm == null) return;
             ApplyResponsiveLayout();   // окно браузера могли растянуть/сузить на лету
+            UpdateMidOffer();
             UpdateStats();
             UpdateBonuses();
             UpdateUnlocks();
             UpdateModals();
             UpdateWinFx();
+        }
+
+        // Оффер прячем, пока открыта любая модалка: поверх подарка/настроек он бы торчал.
+        void UpdateMidOffer()
+        {
+            if (_midOfferBtn == null) return;
+            bool show = gm.MidLevelOfferVisible && !gm.IsPaused
+                        && !dailyRoot.activeSelf && !resultRoot.activeSelf;
+            if (_midOfferBtn.activeSelf != show)
+            {
+                _midOfferBtn.SetActive(show);
+                // Тень — сосед кнопки, сама она не прячется вместе с ней.
+                UiKit.SetShadowVisible((RectTransform)_midOfferBtn.transform, show);
+                // Событие шлём только по факту показа — иначе воронка «показали/кликнули»
+                // была бы посчитана по намерению, а не по увиденному.
+                if (show) Analytics.MidLevelOffered(gm.CurrentLevel);
+            }
+
+            if (_capNextAnimal != null && _capNextAnimal.gameObject.activeSelf)
+            {
+                int n = LevelsToNextAnimal();
+                _capNextAnimal.text = n > 0 ? AdLoc.NextAnimal(n) : AdLoc.AllAnimals;
+            }
         }
 
         void UpdateWinFx()
@@ -937,6 +1085,14 @@ namespace CozyAnimalTown
                 loseGroup.SetActive(st == GameState.Lose);
                 if (st == GameState.Win)
                 {
+                    int stars = gm.LastStars;
+                    for (int i = 0; i < 3; i++)
+                        _winStars[i].text = i < stars ? UiSymbols.Star : UiSymbols.StarO;
+
+                    bool record = gm.LevelScore >= Progress.BestScoreOf(gm.CurrentLevel);
+                    _winScore.text = AdLoc.ScoreWord + "  " + gm.LevelScore
+                        + (record ? "   <size=70%>" + AdLoc.RecordWord + "</size>" : "");
+
                     StartCoroutine(PlayWinIntro());
                 }
                 else
