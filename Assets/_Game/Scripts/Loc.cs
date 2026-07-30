@@ -28,6 +28,29 @@ namespace CozyAnimalTown
         /// <summary>Выбор строки по языку: en-вариант первым (исходный текст игры).</summary>
         public static string T(string en, string ru) => Ru ? ru : en;
 
+        /// <summary>
+        /// Русское числительное: 1 выстрел / 2 выстрела / 5 выстрелов.
+        ///
+        /// Нужно потому, что все награды подставляются из констант (MidLevelShots и т.п.),
+        /// а их крутят под A/B. Захардкоженное «выстрелов» правильно только для 5 и 11-20:
+        /// смена константы на 2 молча дала бы «2 выстрелов» на кнопке, которую по п.4.5.1
+        /// читает модерация.
+        /// </summary>
+        public static string Plural(int n, string one, string few, string many)
+        {
+            int a = Mathf.Abs(n) % 100;
+            if (a >= 11 && a <= 14) return many;
+            switch (a % 10)
+            {
+                case 1:              return one;
+                case 2: case 3: case 4: return few;
+                default:             return many;
+            }
+        }
+
+        /// <summary>Английское множественное: 1 shot / N shots.</summary>
+        public static string PluralEn(int n, string one, string many) => n == 1 ? one : many;
+
         static void EnsureInit()
         {
             if (_init) return;

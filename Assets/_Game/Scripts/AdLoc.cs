@@ -25,37 +25,67 @@ namespace CozyAnimalTown
         public static string RefillBadge =>
             UiSymbols.Clap + " AD +" + GameManager.RefillAmount;
 
+        /// <summary>Слово «выстрел» в нужном числе — количество приходит из константы,
+        /// а её крутят под A/B, поэтому склонять надо, а не хардкодить.</summary>
+        static string Shots(int n) => Loc.T(
+            Loc.PluralEn(n, "shot", "shots"),
+            Loc.Plural(n, "выстрел", "выстрела", "выстрелов"));
+
         /// <summary>Оффер прямо в игре, когда выстрелы на исходе.</summary>
         public static string MidLevelBtn =>
-            UiSymbols.Clap + " AD  " + Loc.T($"+{GameManager.MidLevelShots} shots",
-                                             $"+{GameManager.MidLevelShots} выстрелов");
+            UiSymbols.Clap + " AD  +" + GameManager.MidLevelShots + " " + Shots(GameManager.MidLevelShots);
 
         // Экран победы и ежедневный подарок.
         public static string ScoreWord  => Loc.T("Score", "Счёт");
         public static string RecordWord => Loc.T("New best!", "Новый рекорд!");
 
         public static string DailyTitle  => Loc.T("Daily gift", "Ежедневный подарок");
-        public static string DailyReward =>
-            Loc.T($"+{DailyBonus.RainbowReward} rainbows and +{DailyBonus.BombReward} bombs",
-                  $"+{DailyBonus.RainbowReward} радуги и +{DailyBonus.BombReward} бомбы");
+        public static string DailyReward
+        {
+            get
+            {
+                int r = DailyBonus.RainbowReward, b = DailyBonus.BombReward;
+                string rw = Loc.T(Loc.PluralEn(r, "rainbow", "rainbows"),
+                                  Loc.Plural(r, "радуга", "радуги", "радуг"));
+                string bw = Loc.T(Loc.PluralEn(b, "bomb", "bombs"),
+                                  Loc.Plural(b, "бомба", "бомбы", "бомб"));
+                return Loc.T($"+{r} {rw} and +{b} {bw}", $"+{r} {rw} и +{b} {bw}");
+            }
+        }
         public static string DailyTake => Loc.T("Take it!", "Забрать!");
 
-        /// <summary>«До нового зверя — N уровней» в боковой панели.</summary>
+        /// <summary>
+        /// Подсказка в боковой панели. Формулировка про «усложнение», а не про «нового
+        /// зверя»: новый цвет — это не награда, а рост сложности (больше цветов на доске
+        /// = труднее собирать тройки), и игрок должен понимать это заранее.
+        /// </summary>
         public static string NextAnimal(int levels) =>
-            Loc.T($"New animal in {levels} lvl", $"Новый зверь через {levels} ур.");
+            Loc.T($"Harder in {levels} lvl", $"Усложнение через {levels} ур.");
 
-        public static string AllAnimals => Loc.T("All animals unlocked", "Все зверята открыты");
+        public static string AllAnimals => Loc.T("Max difficulty", "Максимальная сложность");
 
         // Кнопки на экране поражения — награду называем прямо в подписи кнопки.
         // Награда за «второй шанс» зависит от причины проигрыша (см. GameManager.OnRewarded),
         // поэтому подписи две: обещать «+5 выстрелов» при переполнении было бы неправдой.
-        public static string SecondChanceShotsBtn =>
-            Loc.T($"Second chance\n+{GameManager.SecondChanceShots} shots",
-                  $"Второй шанс\n+{GameManager.SecondChanceShots} выстрелов");
+        public static string SecondChanceShotsBtn
+        {
+            get
+            {
+                int n = GameManager.SecondChanceShots;
+                return Loc.T($"Second chance\n+{n} {Shots(n)}", $"Второй шанс\n+{n} {Shots(n)}");
+            }
+        }
 
-        public static string SecondChanceClearBtn =>
-            Loc.T($"Second chance\nclear {GameManager.OverflowClearRows} bottom rows",
-                  $"Второй шанс\nубрать {GameManager.OverflowClearRows} нижних ряда");
+        public static string SecondChanceClearBtn
+        {
+            get
+            {
+                int n = GameManager.OverflowClearRows;
+                string rows = Loc.T(Loc.PluralEn(n, "bottom row", "bottom rows"),
+                                    Loc.Plural(n, "нижний ряд", "нижних ряда", "нижних рядов"));
+                return Loc.T($"Second chance\nclear {n} {rows}", $"Второй шанс\nубрать {n} {rows}");
+            }
+        }
 
         public static string SkipLevelBtn =>
             Loc.T("Skip level\nand move on", "Пропустить уровень\nи идти дальше");

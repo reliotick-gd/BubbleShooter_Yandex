@@ -129,6 +129,10 @@ namespace CozyAnimalTown
             UiKit.AddShadow(_rtMidOffer, 10f, -6f);
             _midOfferBtn = btn.gameObject;
             _midOfferBtn.SetActive(false);
+            // Тень гасим ЗДЕСЬ, а не только в UpdateMidOffer: там она прячется по смене
+            // состояния, а кнопка рождается уже скрытой — ветка не срабатывала ни разу,
+            // и на поле висел серый прямоугольник от невидимой кнопки.
+            UiKit.SetShadowVisible(_rtMidOffer, false);
         }
 
         void BuildDailyPanel()
@@ -247,7 +251,7 @@ namespace CozyAnimalTown
             // (ресайз окна) они бы остались десктопными.
             _tLevel.fontSize = _tShots.fontSize = 46f;
             _capPillL.fontSize = _capPillR.fontSize = 18f;
-            _adTxtRainbow.fontSize = _adTxtBomb.fontSize = 26f;
+            _adTxtRainbow.fontSize = _adTxtBomb.fontSize = 24f;
 
             _stripBg.color = White;
             UiKit.Anchor(_rtStrip, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, -298f), new Vector2(1026f, 118f));
@@ -296,9 +300,11 @@ namespace CozyAnimalTown
             {
                 // Бейдж лежит на верхнем правом краю кружка. Ширина — ровно под «🎬 AD +3»,
                 // не растянутая плашка: пустое поле вокруг короткого текста выглядит дёшево.
+                // Ширина под текст с полями: при 0.70d «AD +3» вылезал за плашку, при
+                // 0.92d плашка выглядела раздутой. 0.80d + кегль 29 — текст помещается.
                 // Ниже, чем на макете: иначе бейдж упирается в подпись «РАДУГА» над бомбой.
                 UiKit.Anchor((RectTransform)ad.transform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
-                    new Vector2(-d * 0.003f, -d * 0.20f), new Vector2(d * 0.697f, d * 0.313f));
+                    new Vector2(d * 0.02f, -d * 0.20f), new Vector2(d * 0.80f, d * 0.29f));
                 UiKit.Anchor((RectTransform)count.transform, new Vector2(1f, 0f), new Vector2(0.5f, 0.5f),
                     new Vector2(-d * 0.147f, d * 0.107f), new Vector2(d * 0.303f, d * 0.303f));
             }
@@ -307,7 +313,7 @@ namespace CozyAnimalTown
                 // В портрете бонусы стоят в 200 единицах друг от друга — бейдж уходит НАД
                 // кружок, иначе два бейджа пересекаются.
                 UiKit.Anchor((RectTransform)ad.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f),
-                    new Vector2(0f, 16f * k), new Vector2(140f * k, 52f * k));
+                    new Vector2(0f, 16f * k), new Vector2(158f * k, 52f * k));
                 UiKit.Anchor((RectTransform)count.transform, new Vector2(1f, 0f), new Vector2(0.5f, 0.5f),
                     new Vector2(-14f * k, 12f * k), new Vector2(52f * k, 52f * k));
             }
@@ -381,7 +387,7 @@ namespace CozyAnimalTown
             SizeBonus(_rtBomb,    _bombIcon,    bombAd,    _bombCountBadge,    _bombLock,    D);
             UiKit.Anchor(_rtRainbow, mid, mid, new Vector2(rp, 76f),   new Vector2(D, D));
             UiKit.Anchor(_rtBomb,    mid, mid, new Vector2(rp, -175f), new Vector2(D, D));
-            _adTxtRainbow.fontSize = _adTxtBomb.fontSize = 34f;
+            _adTxtRainbow.fontSize = _adTxtBomb.fontSize = 29f;
 
             _capRainbow.gameObject.SetActive(true);
             _capBomb.gameObject.SetActive(true);
@@ -515,7 +521,11 @@ namespace CozyAnimalTown
             // п.4.5.1: бейдж называет количество награды («▶ +3»), а полный текст
             // («Посмотри рекламу и получи +3 радуги») — в диалоге подтверждения; ролик
             // стартует только оттуда. Раньше здесь был голый ▶ — за это и сняли черновик.
+            // Тот же candy-стиль, что у кнопки оффера: градиент объёма и блик сверху.
+            // Плоская плашка рядом с «леденцовыми» кнопками смотрелась чужеродно.
             var ad = UiKit.Panel(holder, GreenAd, false);
+            ad.sprite = UiKit.CandySprite;
+            ad.type   = Image.Type.Sliced;
             UiKit.Anchor(ad.rectTransform, new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
                 new Vector2(2f, 8f), new Vector2(118f, 54f));
             var adTxt = UiKit.Label(ad.transform, AdLoc.RefillBadge, 26, TextAnchor.MiddleCenter, White);

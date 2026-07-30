@@ -28,7 +28,9 @@ namespace CozyAnimalTown
             PlayerPrefs.SetInt("cat_seen_ice", 1);
             PlayerPrefs.SetInt("cat_seen_slime", 1);
             PlayerPrefs.SetInt("cat_seen_rock", 1);
-            PlayerPrefs.SetInt("cat_rainbow", 5);
+            // -empty: обнуляем оба бустера, чтобы в кадре были ОБА бейджа «AD +3» —
+            // так видно, что радуга и бомба получают одинаковую плашку.
+            PlayerPrefs.SetInt("cat_rainbow", Arg("-empty") != null ? 0 : 5);
             PlayerPrefs.SetInt("cat_bomb", 0);
             // Подарок за «сегодня» уже забран — иначе он перекрыл бы кадр геймплея.
             // Для съёмки самой модалки есть флаг -daily.
