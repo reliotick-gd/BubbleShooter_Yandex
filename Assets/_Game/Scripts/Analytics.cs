@@ -127,9 +127,9 @@ namespace CozyAnimalTown
         public static void DailyClaimed(int level) =>
             Send("daily_bonus_claimed", $"{{\"level\":{level}}}");
 
-        /// <summary>Уровень пройден: счёт и звёзды за попытку.</summary>
-        public static void LevelScored(int level, int score, int stars) =>
-            Send("level_scored", $"{{\"level\":{level},\"score\":{score},\"stars\":{stars}}}");
+        /// <summary>Уровень пройден: сколько звёзд за попытку.</summary>
+        public static void LevelStars(int level, int stars) =>
+            Send("level_stars", $"{{\"level\":{level},\"stars\":{stars}}}");
 
         public static void OnboardingShown() =>
             Send("onboarding_shown", "{}");

@@ -268,13 +268,20 @@ mergeInto(LibraryManager.library, {
       promise.then(function (res) {
         var out = { userRank: (res && res.userRank) || 0, entries: [] };
         (res && res.entries || []).forEach(function (e) {
-          var nm = (e.player && e.player.publicName) ? e.player.publicName : '';
+          // publicName пустой, если игрок не открыл имя. Логируем сырое значение —
+          // без этого невозможно отличить «SDK не отдал имя» от «UI не нарисовал».
+          var raw = (e.player && e.player.publicName) || '';
+          var nm  = String(raw).trim();
           var av = '';
           try { if (e.player && e.player.getAvatarSrc) av = e.player.getAvatarSrc('small') || ''; } catch (ex) { }
           var isUser = myId ? !!(e.player && e.player.uniqueID === myId)
                             : (out.userRank > 0 && e.rank === out.userRank);
           out.entries.push({ rank: e.rank, score: e.score, name: nm, avatar: av, isUser: isUser });
         });
+        try {
+          console.log('[YG] leaderboard entries:', out.entries.length,
+                      'с именами:', out.entries.filter(function (x) { return x.name; }).length);
+        } catch (ex) { }
         reply(JSON.stringify(out));
       }).catch(function (e) {
         console.warn('[YG] getLeaderboardEntries error', e);

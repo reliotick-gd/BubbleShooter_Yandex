@@ -88,5 +88,8 @@ namespace CozyAnimalTown
 
         public static string SkipLevelBtn =>
             Loc.T("Skip level\nand move on", "Пропустить уровень\nи идти дальше");
+
+        /// <summary>Перепройти только что пройденный уровень — ради трёх звёзд.</summary>
+        public static string PlayAgainBtn => Loc.T("Play again", "Пройти заново");
     }
 }

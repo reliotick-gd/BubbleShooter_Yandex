@@ -43,9 +43,9 @@ namespace CozyAnimalTown
                 best    = Progress.Raw,
             }));
 
-            // В таблицу — сумма лучших результатов, а не номер уровня: по уровню все,
-            // кто добрался до конца, оказывались с одинаковым результатом.
-            YandexBridge.SetLeaderboardScore(Progress.TotalScore);
+            // В таблицу — сумма звёзд, а не номер уровня: по уровню все, кто добрался
+            // до конца, оказывались с одинаковым результатом.
+            YandexBridge.SetLeaderboardScore(Progress.TotalStars);
         }
 
         // Бамп SaveVer стирает локальный прогресс (GameBootstrap), но облако при обычном

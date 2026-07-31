@@ -75,12 +75,10 @@ namespace CozyAnimalTown
         public const int OverflowClearRows = 3;   // рядов снизу, если проиграл по переполнению
         public const int MidLevelShots     = 5;   // выстрелов за ролик в мид-левел оффере
 
-        // Счёт текущей попытки и звёзды за неё — показывает экран победы.
-        int  _levelScore;
+        // Звёзды за текущую попытку — их показывает экран победы.
         int  _lastStars;
         bool _midOffered;      // оффер «+5 выстрелов» за попытку показываем один раз
 
-        public int  LevelScore => _levelScore;
         public int  LastStars  => _lastStars;
 
         /// <summary>Показывать ли кнопку «посмотреть ролик за +5 выстрелов» прямо в игре.</summary>
@@ -292,7 +290,6 @@ namespace CozyAnimalTown
             board.BuildLevel(levelDef);
             RefreshBonusUnlocks();
             shotsLeft  = cfg.startingShots;
-            _levelScore  = 0;
             _midOffered  = false;
             _combo       = 0;
             _lastPopTime = -999f;
@@ -530,8 +527,6 @@ namespace CozyAnimalTown
                 if (Time.time - _lastPopTime <= ComboWindow) _combo++;
                 else                                          _combo = 1;
                 _lastPopTime = Time.time;
-                // Комбо — множитель: длинная серия даёт кратно больше, чем те же шары поодиночке.
-                _levelScore += removed * Progress.PointsPerBubble * Mathf.Max(1, _combo);
                 if (_combo >= 2)
                 {
                     ComboDisplay.Instance?.Show(_combo);
@@ -549,12 +544,11 @@ namespace CozyAnimalTown
                 YandexBridge.GameplayStop();
                 shooter.HideProjectile();
 
-                // Неизрасходованные выстрелы — в очки: это и есть стимул играть аккуратно,
-                // а не «дострелять как-нибудь».
-                _levelScore += shotsLeft * Progress.PointsPerShotLeft;
-                _lastStars   = Progress.StarsForShots(shotsLeft, cfg.startingShots);
-                Progress.Submit(currentLevel, _levelScore, _lastStars);
-                Analytics.LevelScored(currentLevel, _levelScore, _lastStars);
+                // Чем больше выстрелов осталось, тем больше звёзд — это и есть стимул
+                // играть аккуратно, а не «дострелять как-нибудь».
+                _lastStars = Progress.StarsForShots(shotsLeft, cfg.startingShots);
+                Progress.Submit(currentLevel, _lastStars);
+                Analytics.LevelStars(currentLevel, _lastStars);
 
                 SaveProgress();
                 Analytics.LevelComplete(currentLevel, attemptsThisLevel, shotsLeft,

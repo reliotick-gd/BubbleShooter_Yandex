@@ -197,7 +197,9 @@ namespace CozyAnimalTown
                 new Vector2(78f, 0f), new Vector2(84f, 84f));
             holder.AddComponent<Mask>().showMaskGraphic = true;   // круглая маска для фото
 
-            string nm = string.IsNullOrEmpty(e.name) ? Loc.T("Player", "Игрок") : e.name;
+            // IsNullOrWhiteSpace, а не IsNullOrEmpty: SDK отдаёт имя пробелом, если игрок
+            // не открыл его, и строка из пробела рисуется как пустое место.
+            string nm = string.IsNullOrWhiteSpace(e.name) ? Loc.T("Player", "Игрок") : e.name.Trim();
             var letter = UiKit.Label(holder.transform, nm.Substring(0, 1).ToUpperInvariant(),
                 38, TextAnchor.MiddleCenter, Color.white);
             letter.fontStyle = FontStyles.Bold;

@@ -127,7 +127,6 @@ namespace CozyAnimalTown
                 string winShot = Arg("-shotwin");
                 if (!string.IsNullOrEmpty(winShot) && gm != null)
                 {
-                    SetPrivate(gm, "_levelScore", 4830);
                     SetPrivate(gm, "_lastStars", 3);
                     SetPrivate(gm, "<State>k__BackingField", GameState.Win);
                     yield return new WaitForSecondsRealtime(2.2f);

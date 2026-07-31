@@ -75,6 +75,8 @@ namespace CozyAnimalTown
         static readonly Color Dim        = new Color(0.20f, 0.16f, 0.12f, 0.42f);
         static readonly Color Green      = new Color(0.42f, 0.76f, 0.52f, 1f);
         static readonly Color GreenAd    = new Color(0.30f, 0.78f, 0.44f, 1f);
+        static readonly Color ReplayGrey  = new Color(0.82f, 0.80f, 0.77f, 1f);
+        static readonly Color ReplayText  = new Color(0.38f, 0.34f, 0.30f, 1f);
         static readonly Color Peach      = new Color(0.96f, 0.86f, 0.74f, 1f);
         static readonly Color BadgeDark  = new Color(0.38f, 0.31f, 0.25f, 1f);
         static readonly Color LockTint   = new Color(0.30f, 0.27f, 0.24f, 0.85f);
@@ -562,9 +564,9 @@ namespace CozyAnimalTown
             UiKit.FullScreenDim(dim.rectTransform);
 
             winGroup = NewGroup("Win", resultRoot.transform);
-            _sunburstRt  = MakeGlow(winGroup.transform, new Color(1f, 0.84f, 0.32f, 0.42f), 1500f, new Vector2(0f, 60f), UiKit.SunburstSprite);
-            _glowRt      = MakeGlow(winGroup.transform, new Color(1f, 0.9f, 0.42f, 0.5f),   1120f, new Vector2(0f, 60f), UiKit.GlowSprite);
-            _winMascotRt = MakeMascot(winGroup.transform, "Mascots/cat_3x4", new Vector2(640f, 910f), new Vector2(0f, 40f), Color.white, false);
+            _sunburstRt  = MakeGlow(winGroup.transform, new Color(1f, 0.84f, 0.32f, 0.42f), 1500f, new Vector2(0f, 288f), UiKit.SunburstSprite);
+            _glowRt      = MakeGlow(winGroup.transform, new Color(1f, 0.9f, 0.42f, 0.5f),   1120f, new Vector2(0f, 288f), UiKit.GlowSprite);
+            _winMascotRt = MakeMascot(winGroup.transform, "Mascots/cat_3x4", new Vector2(640f, 910f), new Vector2(0f, 268f), Color.white, false);
             BuildConfetti(winGroup.transform);
             BuildWinWord(winGroup.transform);
 
@@ -575,7 +577,7 @@ namespace CozyAnimalTown
                 var star = UiKit.Label(winGroup.transform, UiSymbols.StarO, 96,
                     TextAnchor.MiddleCenter, White);
                 UiKit.Anchor(star.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                    new Vector2((i - 1) * 116f, -395f), new Vector2(110f, 110f));
+                    new Vector2((i - 1) * 116f, -167f), new Vector2(110f, 110f));
                 _winStars[i] = star;
             }
 
@@ -584,7 +586,7 @@ namespace CozyAnimalTown
             _winSub.fontStyle = FontStyles.Bold;
             ApplyOutline(_winSub, new Color(0.30f, 0.18f, 0.06f), 0.22f);
             UiKit.Anchor(_winSub.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0f, -520f), new Vector2(920f, 70f));
+                new Vector2(0f, -292f), new Vector2(920f, 70f));
 
             var next = UiKit.CandyBtn(winGroup.transform, Loc.T("Level ", "Уровень ") + "2", 60, CandyOrng, White,
                 () => gm.NextLevel());
@@ -592,9 +594,19 @@ namespace CozyAnimalTown
             ApplyOutline(_nextLabel, new Color(0.62f, 0.32f, 0.06f), 0.16f);
             _nextRt = (RectTransform)next.transform;
             UiKit.Anchor(_nextRt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 180f), new Vector2(660f, 152f));
+                new Vector2(0f, 408f), new Vector2(660f, 152f));
             UiKit.AddShadow(_nextRt, 12f, -7f);
             _nextCg = next.gameObject.AddComponent<CanvasGroup>();
+
+            // «Пройти заново» — под основной кнопкой, в сером: это вторичное действие,
+            // оно не должно спорить с «дальше». Нужно, чтобы можно было перепройти
+            // уровень на три звезды, не проигрывая специально.
+            var again = UiKit.CandyBtn(winGroup.transform, AdLoc.PlayAgainBtn, 46, ReplayGrey, ReplayText,
+                () => gm.Retry());
+            var againRt = (RectTransform)again.transform;
+            UiKit.Anchor(againRt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0f, 180f), new Vector2(660f, 152f));
+            UiKit.AddShadow(againRt, 12f, -7f);
 
             loseGroup = NewGroup("Lose", resultRoot.transform);
             _loseMascotRt = MakeMascot(loseGroup.transform, "Mascots/sad_kitty", new Vector2(690f, 880f), new Vector2(0f, 70f),
@@ -792,7 +804,7 @@ namespace CozyAnimalTown
             _winTitle.enableAutoSizing = true; _winTitle.fontSizeMin = 44; _winTitle.fontSizeMax = 84;
             ApplyOutline(_winTitle, new Color(0.22f, 0.12f, 0.05f), 0.22f);
             UiKit.Anchor(_winTitle.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                new Vector2(0f, 720f), new Vector2(1040f, 220f));
+                new Vector2(0f, 838f), new Vector2(1040f, 220f));
         }
 
         void BuildConfetti(Transform parent)

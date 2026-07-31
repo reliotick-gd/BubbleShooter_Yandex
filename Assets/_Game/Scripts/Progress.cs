@@ -4,28 +4,25 @@ using UnityEngine;
 namespace CozyAnimalTown
 {
     /// <summary>
-    /// Счёт и звёзды за уровни.
+    /// Звёзды за уровни — единственная валюта прогресса.
     ///
-    /// ЗАЧЕМ. Лидерборд раньше хранил максимальный уровень — такая таблица мертва: все,
-    /// кто дошёл до 30-го, равны между собой, обгонять некого и переигрывать нечего.
-    /// Теперь в таблицу уходит сумма ЛУЧШИХ результатов по уровням, поэтому есть смысл
-    /// возвращаться и переигрывать пройденное.
+    /// ЗАЧЕМ. Лидерборд раньше хранил максимальный уровень: все, кто дошёл до 30-го,
+    /// оказывались равны, обгонять некого. Систему очков (за шары и остаток выстрелов)
+    /// тоже убрали — она была непрозрачной: игрок не понимал, откуда взялось число.
+    /// Звёзды видно прямо на экране победы, их максимум 3 за уровень, и сумма звёзд —
+    /// честный и понятный критерий для таблицы: чтобы обогнать, надо перепройти уровни
+    /// чище, а не «накрутить» очки.
     ///
-    /// ФОРМАТ ХРАНЕНИЯ. Класть по ключу PlayerPrefs на уровень — это сотни ключей и
-    /// столько же записей в IndexedDB на WebGL. Вместо этого одна строка вида
-    /// "уровень:счёт:звёзды;…" — компактно, читаемо и целиком влезает в облачный сейв
-    /// (лимит Яндекса 200 КБ на игрока с огромным запасом).
+    /// ФОРМАТ ХРАНЕНИЯ. Ключ PlayerPrefs на уровень — это сотни записей в IndexedDB на
+    /// WebGL. Вместо этого одна строка «уровень:звёзды;…» — компактно и целиком влезает
+    /// в облачный сейв.
     /// </summary>
     public static class Progress
     {
-        const string KeyBest = "cat_best";     // "1:1200:3;2:980:2;…"
-
-        // Очки. Держим в константах: их же показывает экран победы.
-        public const int PointsPerBubble  = 10;   // за лопнувший шар (умножается на комбо)
-        public const int PointsPerShotLeft = 50;  // за каждый неизрасходованный выстрел
+        const string KeyBest = "cat_best";     // "1:3;2:2;…"
 
         static bool _loaded;
-        static readonly System.Collections.Generic.Dictionary<int, (int score, int stars)> _best = new();
+        static readonly System.Collections.Generic.Dictionary<int, int> _stars = new();
 
         static void EnsureLoaded()
         {
@@ -36,25 +33,41 @@ namespace CozyAnimalTown
 
         static void Parse(string raw)
         {
-            _best.Clear();
+            _stars.Clear();
+            Absorb(raw);
+        }
+
+        /// <summary>
+        /// Разбирает строку рекордов, беря максимум по каждому уровню.
+        /// Понимает и старый формат «уровень:очки:звёзды» — сейвы игроков, успевших
+        /// поиграть до отказа от очков, не должны обнуляться.
+        /// </summary>
+        static void Absorb(string raw)
+        {
             if (string.IsNullOrEmpty(raw)) return;
             foreach (var part in raw.Split(';'))
             {
                 if (part.Length == 0) continue;
                 var f = part.Split(':');
-                if (f.Length != 3) continue;
-                if (int.TryParse(f[0], out int lvl) && int.TryParse(f[1], out int sc) && int.TryParse(f[2], out int st))
-                    _best[lvl] = (sc, st);
+                if (f.Length < 2) continue;
+                if (!int.TryParse(f[0], out int lvl)) continue;
+
+                // 2 поля — новый формат (уровень:звёзды); 3 — старый (уровень:очки:звёзды).
+                string starsField = f.Length >= 3 ? f[2] : f[1];
+                if (!int.TryParse(starsField, out int st)) continue;
+
+                st = Mathf.Clamp(st, 0, 3);
+                if (!_stars.TryGetValue(lvl, out int cur) || st > cur) _stars[lvl] = st;
             }
         }
 
         static string Serialize()
         {
             var sb = new StringBuilder();
-            foreach (var kv in _best)
+            foreach (var kv in _stars)
             {
                 if (sb.Length > 0) sb.Append(';');
-                sb.Append(kv.Key).Append(':').Append(kv.Value.score).Append(':').Append(kv.Value.stars);
+                sb.Append(kv.Key).Append(':').Append(kv.Value);
             }
             return sb.ToString();
         }
@@ -62,32 +75,24 @@ namespace CozyAnimalTown
         /// <summary>Сырая строка рекордов — уезжает в облако вместе с уровнем.</summary>
         public static string Raw { get { EnsureLoaded(); return Serialize(); } }
 
-        /// <summary>Сливает облачную строку с локальной: по каждому уровню побеждает больший счёт.</summary>
+        /// <summary>Сливает облачную строку с локальной: по каждому уровню побеждает больше звёзд.</summary>
         public static void MergeRaw(string cloudRaw)
         {
             EnsureLoaded();
             if (string.IsNullOrEmpty(cloudRaw)) return;
-
-            foreach (var part in cloudRaw.Split(';'))
-            {
-                if (part.Length == 0) continue;
-                var f = part.Split(':');
-                if (f.Length != 3) continue;
-                if (!int.TryParse(f[0], out int lvl) || !int.TryParse(f[1], out int sc) || !int.TryParse(f[2], out int st))
-                    continue;
-                if (!_best.TryGetValue(lvl, out var cur) || sc > cur.score) _best[lvl] = (sc, st);
-            }
+            Absorb(cloudRaw);
             PlayerPrefs.SetString(KeyBest, Serialize());
             PlayerPrefs.Save();
         }
 
-        public static int TotalScore
+        /// <summary>Сумма звёзд по всем уровням — это и есть результат в таблице лидеров.</summary>
+        public static int TotalStars
         {
             get
             {
                 EnsureLoaded();
                 int sum = 0;
-                foreach (var kv in _best) sum += kv.Value.score;
+                foreach (var kv in _stars) sum += kv.Value;
                 return sum;
             }
         }
@@ -95,27 +100,22 @@ namespace CozyAnimalTown
         public static int StarsOf(int level)
         {
             EnsureLoaded();
-            return _best.TryGetValue(level, out var v) ? v.stars : 0;
+            return _stars.TryGetValue(level, out int v) ? v : 0;
         }
 
-        public static int BestScoreOf(int level)
+        /// <summary>Записывает результат уровня. Возвращает true, если звёзд стало больше.</summary>
+        public static bool Submit(int level, int stars)
         {
             EnsureLoaded();
-            return _best.TryGetValue(level, out var v) ? v.score : 0;
-        }
-
-        /// <summary>Записывает результат уровня. Возвращает true, если это новый рекорд.</summary>
-        public static bool Submit(int level, int score, int stars)
-        {
-            EnsureLoaded();
-            bool record = !_best.TryGetValue(level, out var cur) || score > cur.score;
-            if (record)
+            stars = Mathf.Clamp(stars, 0, 3);
+            bool better = !_stars.TryGetValue(level, out int cur) || stars > cur;
+            if (better)
             {
-                _best[level] = (score, Mathf.Max(stars, cur.stars));
+                _stars[level] = stars;
                 PlayerPrefs.SetString(KeyBest, Serialize());
                 PlayerPrefs.Save();
             }
-            return record;
+            return better;
         }
 
         /// <summary>Звёзды по остатку выстрелов: 3 — прошёл с запасом, 1 — впритык.</summary>
