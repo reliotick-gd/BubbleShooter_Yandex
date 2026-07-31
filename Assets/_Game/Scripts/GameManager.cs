@@ -70,7 +70,7 @@ namespace CozyAnimalTown
         // Размеры наград за rewarded вынесены в константы: их дословно называют кнопки и
         // диалог подтверждения. п.4.5.1 Яндекса требует, чтобы игрок ЗАРАНЕЕ видел, что
         // именно и сколько он получит — а текст не должен разъезжаться с реальной выдачей.
-        public const int RefillAmount      = 3;   // зарядов бомбы/радуги за ролик
+        public const int RefillAmount      = 5;   // зарядов бомбы/радуги за ролик
         public const int SecondChanceShots = 5;   // выстрелов за «Второй шанс»
         public const int OverflowClearRows = 3;   // рядов снизу, если проиграл по переполнению
         public const int MidLevelShots     = 5;   // выстрелов за ролик в мид-левел оффере

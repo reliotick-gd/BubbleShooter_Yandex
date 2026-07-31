@@ -36,6 +36,7 @@ namespace CozyAnimalTown
         }
 
         bool _dropInRunning;
+        Coroutine _dropInCo;
 
         public void BuildLevel(LevelDef def)
         {
@@ -52,7 +53,14 @@ namespace CozyAnimalTown
                     var cell = new Vector2Int(o.q, o.r);
                     if (grid.InRange(cell)) Spawn(cell, LevelDef.TypeToId(o.type));
                 }
-            if (!_dropInRunning) StartCoroutine(DropInAnim());
+            // Пересборка доски во время падения шаров: старую корутину ОБЯЗАТЕЛЬНО гасим
+            // и запускаем новую. Раньше стоял флаг «не запускать, если уже идёт» — и новая
+            // доска в этом случае просто вставала на финальные места поверх ещё падающей
+            // старой. Выглядело как двойной спавн с интервалом (заметно на первом запуске,
+            // где облако отвечает почти сразу после StartLevel).
+            if (_dropInCo != null) StopCoroutine(_dropInCo);
+            _dropInRunning = false;
+            _dropInCo = StartCoroutine(DropInAnim());
         }
 
         /// <summary>Шары-звери, которые ещё нужно убрать (цель уровня). Препятствия не в счёт.</summary>

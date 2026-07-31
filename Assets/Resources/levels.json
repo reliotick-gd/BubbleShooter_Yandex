@@ -9,7 +9,7 @@
     {
       "rows": 4,
       "colors": 3,
-      "shots": 28,
+      "shots": 30,
       "obstacles": [
         {
           "q": 5,
@@ -21,7 +21,7 @@
     {
       "rows": 4,
       "colors": 3,
-      "shots": 28,
+      "shots": 30,
       "obstacles": [
         {
           "q": 3,
@@ -38,7 +38,7 @@
     {
       "rows": 5,
       "colors": 3,
-      "shots": 26,
+      "shots": 38,
       "obstacles": [
         {
           "q": 2,
@@ -55,7 +55,7 @@
     {
       "rows": 5,
       "colors": 3,
-      "shots": 28,
+      "shots": 38,
       "obstacles": [
         {
           "q": 5,
@@ -67,7 +67,7 @@
     {
       "rows": 5,
       "colors": 4,
-      "shots": 27,
+      "shots": 41,
       "obstacles": [
         {
           "q": 3,
@@ -84,7 +84,7 @@
     {
       "rows": 5,
       "colors": 4,
-      "shots": 26,
+      "shots": 41,
       "obstacles": [
         {
           "q": 5,
@@ -106,7 +106,7 @@
     {
       "rows": 5,
       "colors": 4,
-      "shots": 28,
+      "shots": 41,
       "obstacles": [
         {
           "q": 5,
@@ -118,7 +118,7 @@
     {
       "rows": 5,
       "colors": 4,
-      "shots": 26,
+      "shots": 41,
       "obstacles": [
         {
           "q": 5,
@@ -140,7 +140,7 @@
     {
       "rows": 6,
       "colors": 4,
-      "shots": 26,
+      "shots": 49,
       "obstacles": [
         {
           "q": 5,
@@ -162,7 +162,7 @@
     {
       "rows": 6,
       "colors": 5,
-      "shots": 27,
+      "shots": 51,
       "obstacles": [
         {
           "q": 3,
@@ -179,7 +179,7 @@
     {
       "rows": 6,
       "colors": 5,
-      "shots": 26,
+      "shots": 51,
       "obstacles": [
         {
           "q": 5,
@@ -201,7 +201,7 @@
     {
       "rows": 6,
       "colors": 5,
-      "shots": 25,
+      "shots": 51,
       "obstacles": [
         {
           "q": 2,
@@ -228,7 +228,7 @@
     {
       "rows": 6,
       "colors": 5,
-      "shots": 27,
+      "shots": 51,
       "obstacles": [
         {
           "q": 5,
@@ -240,7 +240,7 @@
     {
       "rows": 6,
       "colors": 5,
-      "shots": 26,
+      "shots": 51,
       "obstacles": [
         {
           "q": 5,
@@ -262,7 +262,7 @@
     {
       "rows": 6,
       "colors": 5,
-      "shots": 25,
+      "shots": 51,
       "obstacles": [
         {
           "q": 5,
@@ -284,7 +284,7 @@
     {
       "rows": 6,
       "colors": 6,
-      "shots": 27,
+      "shots": 54,
       "obstacles": [
         {
           "q": 3,
@@ -301,7 +301,7 @@
     {
       "rows": 7,
       "colors": 6,
-      "shots": 25,
+      "shots": 64,
       "obstacles": [
         {
           "q": 5,
@@ -323,7 +323,7 @@
     {
       "rows": 7,
       "colors": 6,
-      "shots": 25,
+      "shots": 63,
       "obstacles": [
         {
           "q": 5,
@@ -355,7 +355,7 @@
     {
       "rows": 7,
       "colors": 6,
-      "shots": 24,
+      "shots": 63,
       "obstacles": [
         {
           "q": 5,
@@ -387,7 +387,7 @@
     {
       "rows": 6,
       "colors": 6,
-      "shots": 26,
+      "shots": 54,
       "obstacles": [
         {
           "q": 3,
@@ -404,7 +404,7 @@
     {
       "rows": 6,
       "colors": 6,
-      "shots": 26,
+      "shots": 54,
       "obstacles": [
         {
           "q": 5,
@@ -426,7 +426,7 @@
     {
       "rows": 6,
       "colors": 6,
-      "shots": 28,
+      "shots": 54,
       "obstacles": [
         {
           "q": 3,
@@ -443,7 +443,7 @@
     {
       "rows": 7,
       "colors": 6,
-      "shots": 26,
+      "shots": 64,
       "obstacles": [
         {
           "q": 5,
@@ -465,7 +465,7 @@
     {
       "rows": 7,
       "colors": 6,
-      "shots": 24,
+      "shots": 64,
       "obstacles": [
         {
           "q": 2,
@@ -492,7 +492,7 @@
     {
       "rows": 6,
       "colors": 7,
-      "shots": 28,
+      "shots": 58,
       "obstacles": [
         {
           "q": 3,
@@ -509,7 +509,7 @@
     {
       "rows": 6,
       "colors": 7,
-      "shots": 26,
+      "shots": 57,
       "obstacles": [
         {
           "q": 5,
@@ -531,7 +531,7 @@
     {
       "rows": 6,
       "colors": 7,
-      "shots": 27,
+      "shots": 58,
       "obstacles": [
         {
           "q": 2,
@@ -548,7 +548,7 @@
     {
       "rows": 7,
       "colors": 7,
-      "shots": 25,
+      "shots": 68,
       "obstacles": [
         {
           "q": 5,
@@ -570,7 +570,7 @@
     {
       "rows": 7,
       "colors": 7,
-      "shots": 24,
+      "shots": 67,
       "obstacles": [
         {
           "q": 2,

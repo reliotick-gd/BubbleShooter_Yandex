@@ -266,59 +266,42 @@ mergeInto(LibraryManager.library, {
             return lb.getLeaderboardEntries(name, opts);
           });
       promise.then(function (res) {
+        var lang = '';
+        try { lang = (window.ysdk.environment.i18n.lang || ''); } catch (ex) { }
+        var anonName = (String(lang).indexOf('ru') === 0) ? 'Аноним' : 'Anonymous';
         var out = { userRank: (res && res.userRank) || 0, entries: [] };
         (res && res.entries || []).forEach(function (e) {
-          // publicName пустой, если игрок не открыл имя. Логируем сырое значение —
-          // без этого невозможно отличить «SDK не отдал имя» от «UI не нарисовал».
+          // Имя приходит только у тех, кто открыл его в профиле. Подставляем «Аноним»
+          // прямо здесь, а не в C#: так в игру всегда уезжает непустая строка и
+          // отрисовка не зависит от того, что именно вернул SDK (пустая строка, пробел
+          // или отсутствующее поле).
           var raw = (e.player && e.player.publicName) || '';
           var nm  = String(raw).trim();
+          if (!nm) nm = anonName;
           var av = '';
           try { if (e.player && e.player.getAvatarSrc) av = e.player.getAvatarSrc('small') || ''; } catch (ex) { }
           var isUser = myId ? !!(e.player && e.player.uniqueID === myId)
                             : (out.userRank > 0 && e.rank === out.userRank);
           out.entries.push({ rank: e.rank, score: e.score, name: nm, avatar: av, isUser: isUser });
         });
-        // Диагностика имён: документация не описывает, при каких условиях publicName
-        // пустой, поэтому смотрим на РЕАЛЬНЫЙ объект игрока с площадки, а не гадаем.
-        try {
-          console.log('[YG] leaderboard entries:', out.entries.length,
-                      'с именами:', out.entries.filter(function (x) { return x.name; }).length);
-          var first = (res && res.entries && res.entries[0]) || null;
-          if (first && first.player) {
-            console.log('[YG] player keys:', Object.keys(first.player).join(', '));
-            console.log('[YG] publicName =', JSON.stringify(first.player.publicName),
-                        '| scopePermissions =', JSON.stringify(first.player.scopePermissions),
-                        '| getName =', (typeof first.player.getName === 'function'
-                                         ? JSON.stringify(first.player.getName()) : 'нет метода'));
-          }
-        } catch (ex) { console.warn('[YG] diag failed', ex); }
         reply(JSON.stringify(out));
       }).catch(function (e) {
         console.warn('[YG] getLeaderboardEntries error', e);
         reply(empty);
       });
     };
-    // ВАЖНО про имена в таблице. Везде в игре игрок берётся с { scopes: false } —
-    // это осознанно: сейв не требует персональных данных, и дёргать разрешением на
-    // старте незачем. Но по документации имя и аватар доступны только у авторизованных
-    // игроков, не запретивших доступ к персональным данным. Пока игра ни разу не
-    // запросила разрешение, publicName у записей пустой — что и давало таблицу без ников.
-    // Поэтому ровно здесь, при открытии таблицы (единственный экран, где имя вообще
-    // нужно), запрашиваем scopes: true. Отказ игрока не ломает ничего — просто грузим
-    // записи как раньше.
-    var withPlayer = function (p) {
-      if (p) {
+    // Разрешение на персональные данные НЕ запрашиваем: на площадке так не принято,
+    // и попадание в таблицу от него не зависит. У кого имя открыто — оно придёт само,
+    // остальные показываются как «Аноним» (подставляется ниже, ещё в JS).
+    if (window.__ysdkPlayer && window.__ysdkPlayer.getUniqueID) {
+      try { myId = window.__ysdkPlayer.getUniqueID() || ''; } catch (e) { }
+      load();
+    } else if (window.ysdk.getPlayer) {
+      window.ysdk.getPlayer({ scopes: false }).then(function (p) {
         window.__ysdkPlayer = p;
         try { myId = p.getUniqueID() || ''; } catch (e) { }
-      }
-      load();
-    };
-    if (window.ysdk.getPlayer) {
-      window.ysdk.getPlayer({ scopes: true }).then(withPlayer, function (e) {
-        console.warn('[YG] getPlayer(scopes:true) отклонён — имена будут пустыми', e);
-        // Игрок отказал: берём то, что уже есть, и всё равно показываем таблицу.
-        withPlayer(window.__ysdkPlayer || null);
-      });
+        load();
+      }, load);
     } else load();
   },
 

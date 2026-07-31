@@ -32,6 +32,7 @@ namespace CozyAnimalTown
         GameObject _midOfferBtn;          // оффер «+5 выстрелов» во время игры
         RectTransform _rtMidOffer;
         GameObject dailyRoot;             // модалка ежедневного подарка
+        const int DailyFromLevel = 4;    // раньше — накладывается на онбординг
         readonly TMP_Text[] _winStars = new TMP_Text[3];
 
         GameObject resultRoot, winGroup, loseGroup, pauseRoot;
@@ -112,9 +113,10 @@ namespace CozyAnimalTown
             pauseRoot.SetActive(false);
             ApplyResponsiveLayout();
 
-            // Подарок показываем сразу после входа в игру — до первого выстрела, чтобы
-            // не прерывать партию модалкой.
-            dailyRoot.SetActive(DailyBonus.Available);
+            // Подарок — не раньше DailyFromLevel: на первых уровнях идёт онбординг и
+            // подсказки препятствий, и модалка поверх них перехватывала клики.
+            // На 4-м онбординга уже нет — там и знакомим игрока с подарком.
+            dailyRoot.SetActive(DailyBonus.Available && gm.CurrentLevel >= DailyFromLevel);
         }
 
         /// <summary>
@@ -632,14 +634,16 @@ namespace CozyAnimalTown
             UiKit.Anchor(_loseCount.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 0.5f),
                 new Vector2(-42f, -432f), new Vector2(340f, 64f));
 
-            // п.4.5.1: в подписи названо количество награды («+5 выстрелов»), не только действие.
-            var cont = UiKit.CandyBtn(loseGroup.transform, AdLoc.SecondChanceShotsBtn, 44, LoseBlue, White,
+            // Зелёная, как оффер «+5 выстрелов» в игре: это одно и то же действие —
+            // ролик за выстрелы, — и выглядеть оно должно одинаково. Синий цвет читался
+            // как «другая механика». Две строки: что это и что дадут (п.4.5.1).
+            var cont = UiKit.CandyBtn(loseGroup.transform, AdLoc.SecondChanceShotsBtn, 40, GreenAd, White,
                 () => gm.WatchAdForSecondChance());
             _loseContLabel = cont.GetComponentInChildren<TMP_Text>();
             _loseContLabel.enableAutoSizing = true;
-            _loseContLabel.fontSizeMin = 28; _loseContLabel.fontSizeMax = 46;
-            _loseContLabel.lineSpacing = -12f;
-            ApplyOutline(_loseContLabel, new Color(0.16f, 0.30f, 0.52f), 0.16f);
+            _loseContLabel.fontSizeMin = 24; _loseContLabel.fontSizeMax = 40;
+            _loseContLabel.lineSpacing = -10f;
+            ApplyOutline(_loseContLabel, new Color(0.16f, 0.42f, 0.24f), 0.16f);
             var contRt = (RectTransform)cont.transform;
             UiKit.Anchor(contRt, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
                 new Vector2(0f, 316f), new Vector2(680f, 150f));
@@ -721,6 +725,9 @@ namespace CozyAnimalTown
             UiKit.Stretch((RectTransform)pauseRoot.transform);
             var dim = UiKit.Panel(pauseRoot.transform, Dim, true);
             UiKit.FullScreenDim(dim.rectTransform);
+            // Клик мимо окна закрывает настройки — то же, что крестик. Затемнение уже
+            // ловит raycast (raycast:true), осталось повесить на него обработчик.
+            dim.gameObject.AddComponent<Button>().onClick.AddListener(() => gm.SetPaused(false));
 
             var box = Card(pauseRoot.transform, new Vector2(0f, 0f), new Vector2(680f, 460f));
             var title = UiKit.Label(box.transform, Loc.T("Settings", "Настройки"), 48, TextAnchor.MiddleCenter, Brown);

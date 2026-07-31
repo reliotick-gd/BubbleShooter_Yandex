@@ -71,7 +71,8 @@ namespace CozyAnimalTown
             get
             {
                 int n = GameManager.SecondChanceShots;
-                return Loc.T($"Second chance\n+{n} {Shots(n)}", $"Второй шанс\n+{n} {Shots(n)}");
+                string head = Loc.T("Second chance", "Второй шанс");
+                return head + "\n" + UiSymbols.Clap + " AD  +" + n + " " + Shots(n);
             }
         }
 
@@ -82,7 +83,9 @@ namespace CozyAnimalTown
                 int n = GameManager.OverflowClearRows;
                 string rows = Loc.T(Loc.PluralEn(n, "bottom row", "bottom rows"),
                                     Loc.Plural(n, "нижний ряд", "нижних ряда", "нижних рядов"));
-                return Loc.T($"Second chance\nclear {n} {rows}", $"Второй шанс\nубрать {n} {rows}");
+                string head = Loc.T("Second chance", "Второй шанс");
+                string act  = Loc.T($"clear {n} {rows}", $"убрать {n} {rows}");
+                return head + "\n" + UiSymbols.Clap + " AD  " + act;
             }
         }
 

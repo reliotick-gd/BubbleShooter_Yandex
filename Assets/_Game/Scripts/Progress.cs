@@ -118,13 +118,20 @@ namespace CozyAnimalTown
             return better;
         }
 
-        /// <summary>Звёзды по остатку выстрелов: 3 — прошёл с запасом, 1 — впритык.</summary>
+        /// <summary>
+        /// Звёзды по остатку выстрелов: 3 — прошёл с запасом, 1 — впритык.
+        ///
+        /// Пороги смягчены (было 40% и 18%): при старых даже первый уровень с 30 ходами
+        /// давал две звезды, хотя проходится он спокойно. Игра казуальная — три звезды
+        /// должны быть нормой за аккуратную игру, а не наградой за идеальную.
+        /// Значения согласованы с запасом ходов из Docs/balance.csv (~30% сверх нужного).
+        /// </summary>
         public static int StarsForShots(int shotsLeft, int startingShots)
         {
             if (startingShots <= 0) return 1;
             float k = (float)shotsLeft / startingShots;
-            if (k >= 0.40f) return 3;
-            if (k >= 0.18f) return 2;
+            if (k >= 0.28f) return 3;
+            if (k >= 0.10f) return 2;
             return 1;
         }
     }
