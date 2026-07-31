@@ -288,15 +288,27 @@ mergeInto(LibraryManager.library, {
         reply(empty);
       });
     };
-    if (window.__ysdkPlayer && window.__ysdkPlayer.getUniqueID) {
-      try { myId = window.__ysdkPlayer.getUniqueID() || ''; } catch (e) { }
-      load();
-    } else if (window.ysdk.getPlayer) {
-      window.ysdk.getPlayer({ scopes: false }).then(function (p) {
+    // ВАЖНО про имена в таблице. Везде в игре игрок берётся с { scopes: false } —
+    // это осознанно: сейв не требует персональных данных, и дёргать разрешением на
+    // старте незачем. Но по документации имя и аватар доступны только у авторизованных
+    // игроков, не запретивших доступ к персональным данным. Пока игра ни разу не
+    // запросила разрешение, publicName у записей пустой — что и давало таблицу без ников.
+    // Поэтому ровно здесь, при открытии таблицы (единственный экран, где имя вообще
+    // нужно), запрашиваем scopes: true. Отказ игрока не ломает ничего — просто грузим
+    // записи как раньше.
+    var withPlayer = function (p) {
+      if (p) {
         window.__ysdkPlayer = p;
         try { myId = p.getUniqueID() || ''; } catch (e) { }
-        load();
-      }, load);
+      }
+      load();
+    };
+    if (window.ysdk.getPlayer) {
+      window.ysdk.getPlayer({ scopes: true }).then(withPlayer, function (e) {
+        console.warn('[YG] getPlayer(scopes:true) отклонён — имена будут пустыми', e);
+        // Игрок отказал: берём то, что уже есть, и всё равно показываем таблицу.
+        withPlayer(window.__ysdkPlayer || null);
+      });
     } else load();
   },
 
