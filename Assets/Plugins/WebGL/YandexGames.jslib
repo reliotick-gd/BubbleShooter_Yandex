@@ -278,10 +278,20 @@ mergeInto(LibraryManager.library, {
                             : (out.userRank > 0 && e.rank === out.userRank);
           out.entries.push({ rank: e.rank, score: e.score, name: nm, avatar: av, isUser: isUser });
         });
+        // Диагностика имён: документация не описывает, при каких условиях publicName
+        // пустой, поэтому смотрим на РЕАЛЬНЫЙ объект игрока с площадки, а не гадаем.
         try {
           console.log('[YG] leaderboard entries:', out.entries.length,
                       'с именами:', out.entries.filter(function (x) { return x.name; }).length);
-        } catch (ex) { }
+          var first = (res && res.entries && res.entries[0]) || null;
+          if (first && first.player) {
+            console.log('[YG] player keys:', Object.keys(first.player).join(', '));
+            console.log('[YG] publicName =', JSON.stringify(first.player.publicName),
+                        '| scopePermissions =', JSON.stringify(first.player.scopePermissions),
+                        '| getName =', (typeof first.player.getName === 'function'
+                                         ? JSON.stringify(first.player.getName()) : 'нет метода'));
+          }
+        } catch (ex) { console.warn('[YG] diag failed', ex); }
         reply(JSON.stringify(out));
       }).catch(function (e) {
         console.warn('[YG] getLeaderboardEntries error', e);
