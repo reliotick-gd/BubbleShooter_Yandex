@@ -27,10 +27,13 @@ namespace CozyAnimalTown.EditorTools
 
             EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.WebGL, BuildTarget.WebGL);
 
+            // Имя папки вывода = префикс файлов билда (YandexGames.data.br и т.д.).
+            // Оно НЕ произвольное: именно с этим префиксом черновик грузился на площадке
+            // раньше. Сборка в Builds/WebGL давала WebGL.*.br и падала с 404 на CDN.
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes           = scenes,
-                locationPathName = "Builds/WebGL",
+                locationPathName = "Builds/YandexGames",
                 target           = BuildTarget.WebGL,
                 options          = BuildOptions.None,
             });
