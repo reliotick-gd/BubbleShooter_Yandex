@@ -156,6 +156,16 @@ namespace CozyAnimalTown
                         yield return Capture("01_aim", png: true);
                         break;
 
+                    // Экран поражения — для проверки вёрстки кнопок «второго шанса».
+                    // Состояние выставляем напрямую: доигрывать уровень до нуля выстрелов
+                    // ради одного кадра долго и незачем.
+                    case "lose":
+                        SetPrivate(gm, "shotsLeft", 0);
+                        SetPrivate(gm, "<State>k__BackingField", GameState.Lose);
+                        yield return Wait(2.4f);
+                        yield return Capture("lose", png: true);
+                        break;
+
                     // Кадр 2: ПЕРВОЕ попадание уровня. Именно первое: на втором и дальше
                     // включается надпись «КОМБО xN», а она оранжевая поверх пёстрых шаров
                     // и в кадре читается как мусор. Здесь остаются частицы и кольцо удара.

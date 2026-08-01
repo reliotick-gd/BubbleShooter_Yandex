@@ -675,6 +675,7 @@ namespace CozyAnimalTown
                     bombCharges += RefillAmount;
                     PlayerPrefs.SetInt(KeyBomb, bombCharges);
                     PlayerPrefs.Save();
+                    CloudSave.Flush();   // купленное рекламой не ждёт конца уровня
                     break;
 
                 // Оффер прямо в игре: просто доливаем выстрелы, состояние доски не трогаем.
@@ -689,6 +690,7 @@ namespace CozyAnimalTown
                     rainbowCharges += RefillAmount;
                     PlayerPrefs.SetInt(KeyRainbow, rainbowCharges);
                     PlayerPrefs.Save();
+                    CloudSave.Flush();
                     break;
             }
         }

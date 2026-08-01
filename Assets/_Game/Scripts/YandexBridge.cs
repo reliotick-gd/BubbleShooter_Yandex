@@ -119,6 +119,17 @@ namespace CozyAnimalTown
             PlayerPrefs.SetInt(MuteKey, muted ? 1 : 0);
             PlayerPrefs.Save();   // WebGL: без Save() запись может не доехать до IndexedDB
             Instance?.ApplyAudio();
+            // Настройка роумится: чек-лист требует, чтобы между сессиями сохранялся не
+            // только прогресс. Без этого выключенный на телефоне звук возвращался на
+            // компьютере под тем же аккаунтом.
+            CloudSave.Flush();
+        }
+
+        /// <summary>Перечитать мьют из prefs — после мержа облачного сейва.</summary>
+        public static void ReloadMuteFromPrefs()
+        {
+            _userMuted = PlayerPrefs.GetInt(MuteKey, 0) == 1;
+            Instance?.ApplyAudio();
         }
 
         void ApplyAudio()

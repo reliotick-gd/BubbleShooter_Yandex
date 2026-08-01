@@ -38,6 +38,7 @@ namespace CozyAnimalTown
 
         GameObject resultRoot, winGroup, loseGroup, pauseRoot;
         TMP_Text titleText, _loseCount;
+        RectTransform _loseBallRt;   // шарик слева от «Осталось: N», см. CenterLoseCount
         Image _soundIcon;
         GameObject bombAd, rainbowAd;
         Image _bombIcon, _rainbowIcon;
@@ -194,7 +195,11 @@ namespace CozyAnimalTown
 
         void ClaimDaily()
         {
-            if (DailyBonus.Claim(gm.CurrentLevel)) Analytics.DailyClaimed(gm.CurrentLevel);
+            if (DailyBonus.Claim(gm.CurrentLevel))
+            {
+                Analytics.DailyClaimed(gm.CurrentLevel);
+                CloudSave.Flush();   // подарок мог быть последним действием перед выходом
+            }
             dailyRoot.SetActive(false);
             gm.RefreshCharges();
         }
@@ -659,6 +664,7 @@ namespace CozyAnimalTown
             bimg.preserveAspect = true; bimg.raycastTarget = false;
             UiKit.Anchor(bimg.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(-98f, -432f), new Vector2(76f, 76f));
+            _loseBallRt = bimg.rectTransform;
             _loseCount = UiKit.Label(loseGroup.transform, "", 44, TextAnchor.MiddleLeft, White);
             _loseCount.fontStyle = FontStyles.Bold;
             UiKit.Anchor(_loseCount.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0f, 0.5f),
@@ -679,7 +685,11 @@ namespace CozyAnimalTown
                 new Vector2(0f, 316f), new Vector2(680f, 150f));
             _scShadow = UiKit.AddShadow(contRt, 12f, -7f).gameObject;
             _scBtn = cont.gameObject;
-            AddAdBadge(cont.transform);
+            // Бейджа «Реклама» в углу здесь нет намеренно: подпись самой кнопки уже
+            // держит оба факта, которых требует п.4.5.1 — хлопушка с маркером AD
+            // говорит, что будет ролик, и рядом написано, сколько за него дадут.
+            // Второй такой же маркер в углу только загромождал кнопку.
+            // У «Пропустить уровень» бейдж остаётся: в его подписи маркера нет.
 
             // Зелёный, не синий как «Второй шанс» — это «продвижение», а не «спасение».
             var skip = UiKit.CandyBtn(loseGroup.transform, AdLoc.SkipLevelBtn, 42, Green, White,
@@ -746,6 +756,30 @@ namespace CozyAnimalTown
             var t = UiKit.Label(badge.transform, UiSymbols.Play + " " + AdLoc.AdWord, 24, TextAnchor.MiddleCenter, White);
             t.fontStyle = FontStyles.Bold;
             UiKit.Stretch(t.rectTransform);
+        }
+
+        /// <summary>
+        /// Центрирует пару «шарик + Осталось: N» по фактической ширине строки.
+        ///
+        /// Раньше обе части стояли по жёстким координатам, подобранным под русский
+        /// текст, и вся связка уезжала вправо примерно на 80 единиц: контейнер строки
+        /// шириной 340 выровнен по левому краю, а сам текст короче. На английском
+        /// («Left:» вместо «Осталось:») перекос был ещё заметнее.
+        /// </summary>
+        void CenterLoseCount()
+        {
+            if (_loseCount == null || _loseBallRt == null) return;
+
+            const float ballD = 76f, gap = 14f;
+            float textW = _loseCount.GetPreferredValues(_loseCount.text).x;
+            float total = ballD + gap + textW;
+            float left  = -total * 0.5f;
+
+            var b = _loseBallRt.anchoredPosition;
+            _loseBallRt.anchoredPosition = new Vector2(left + ballD * 0.5f, b.y);
+
+            var t = _loseCount.rectTransform.anchoredPosition;
+            _loseCount.rectTransform.anchoredPosition = new Vector2(left + ballD + gap, t.y);
         }
 
         void BuildPausePanel()
@@ -1159,6 +1193,7 @@ namespace CozyAnimalTown
                         ? Loc.T("The bubbles reached the edge!", "Шарики дошли до края!")
                         : Loc.T("Out of shots!", "Выстрелы кончились!");
                     _loseCount.text = Loc.T("Left:", "Осталось:") + "  <color=#FF4747>" + gm.BubbleCount + "</color>";
+                    CenterLoseCount();
                     // Награда за rewarded зависит от причины проигрыша — подпись кнопки
                     // обязана называть именно то, что выдадут (п.4.5.1).
                     if (_loseContLabel)

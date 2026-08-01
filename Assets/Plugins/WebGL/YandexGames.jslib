@@ -280,19 +280,41 @@ mergeInto(LibraryManager.library, {
       promise.then(function (res) {
         var lang = '';
         try { lang = (window.ysdk.environment.i18n.lang || ''); } catch (ex) { }
-        var anonName = (String(lang).indexOf('ru') === 0) ? 'Аноним' : 'Anonymous';
+        // Тот же набор языков, что и в Loc.cs: русский интерфейс получают
+        // ru/be/kk/uk, значит и «Аноним» в таблице должен быть русским для всех них.
+        var anonName = /^(ru|be|kk|uk)/.test(String(lang)) ? 'Аноним' : 'Anonymous';
         var out = { userRank: (res && res.userRank) || 0, entries: [] };
+        // Разовый дамп формы записи: если имена опять не приедут, в консоли будет
+        // видно, что именно вернул SDK, и гадать по документации не придётся —
+        // она про расположение publicName противоречит сама себе.
+        try {
+          var f = (res && res.entries || [])[0];
+          if (f) console.log('[YG] форма записи лидерборда:', Object.keys(f),
+                             '| player:', f.player ? Object.keys(f.player) : 'нет');
+        } catch (ex) { }
+
         (res && res.entries || []).forEach(function (e) {
-          // Имя приходит только у тех, кто открыл его в профиле. Подставляем «Аноним»
-          // прямо здесь, а не в C#: так в игру всегда уезжает непустая строка и
-          // отрисовка не зависит от того, что именно вернул SDK (пустая строка, пробел
-          // или отсутствующее поле).
-          var raw = (e.player && e.player.publicName) || '';
+          // Поля игрока читаем И с самой записи, И из вложенного player.
+          //
+          // Устаревший getLeaderboardEntries кладёт их в e.player — на нём построены
+          // Ledoku и SweetMerge, где имена показываются. Актуальный
+          // leaderboards.getEntries в части документации описан с полями прямо на
+          // записи. Мы звали новый API и читали только e.player, поэтому у нас имя
+          // всегда выходило пустым и подменялось на «Аноним». Берём оба варианта —
+          // тогда результат не зависит от того, какой ветвью ушёл запрос.
+          var pl  = e.player || e;
+          var raw = pl.publicName || e.publicName || '';
           var nm  = String(raw).trim();
           if (!nm) nm = anonName;
+
           var av = '';
-          try { if (e.player && e.player.getAvatarSrc) av = e.player.getAvatarSrc('small') || ''; } catch (ex) { }
-          var isUser = myId ? !!(e.player && e.player.uniqueID === myId)
+          try {
+            var getAv = pl.getAvatarSrc || e.getAvatarSrc;
+            if (getAv) av = getAv.call(pl, 'small') || '';
+          } catch (ex) { }
+
+          var uid = pl.uniqueID || e.uniqueID || '';
+          var isUser = myId ? uid === myId
                             : (out.userRank > 0 && e.rank === out.userRank);
           out.entries.push({ rank: e.rank, score: e.score, name: nm, avatar: av, isUser: isUser });
         });

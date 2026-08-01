@@ -74,13 +74,32 @@ namespace CozyAnimalTown
         // Кнопки на экране поражения — награду называем прямо в подписи кнопки.
         // Награда за «второй шанс» зависит от причины проигрыша (см. GameManager.OnRewarded),
         // поэтому подписи две: обещать «+5 выстрелов» при переполнении было бы неправдой.
+        /// <summary>
+        /// Заголовок кнопки «второго шанса» — жирный и крупнее второй строки.
+        ///
+        /// Кнопка двухстрочная: сверху что это, снизу цена и награда. Раньше обе строки
+        /// были одинаковыми, и глаз не цеплялся ни за что — а решение «остаться в
+        /// уровне» игрок принимает за доли секунды. Разметка TMP: у CozyFont нет
+        /// отдельного жирного начертания, но TMP синтезирует его сам.
+        /// </summary>
+        static string Head(string text) => "<size=128%><b>" + text + "</b></size>";
+        static string Head() => Head(Loc.T("Second chance", "Второй шанс"));
+
+        /// <summary>
+        /// Вторая строка — мельче и чуть прозрачнее заголовка. Одного «жирного» мало:
+        /// у CozyFont нет отдельного жирного начертания, TMP синтезирует его сам и на
+        /// этой гарнитуре прибавка почти не видна. Разницу делает контраст размеров.
+        /// </summary>
+        /// ВНИМАНИЕ: именно color, а не alpha. У TMP тег alpha односторонний — закрывающего
+        /// «/alpha» не существует, и он печатается на кнопке как обычный текст.
+        static string Sub(string text) => "<size=86%><color=#FFFFFFE6>" + text + "</color></size>";
+
         public static string SecondChanceShotsBtn
         {
             get
             {
                 int n = GameManager.SecondChanceShots;
-                string head = Loc.T("Second chance", "Второй шанс");
-                return head + "\n" + UiSymbols.Clap + " AD  +" + n + " " + Shots(n);
+                return Head() + "\n" + Sub(UiSymbols.Clap + " AD  +" + n + " " + Shots(n));
             }
         }
 
@@ -91,14 +110,19 @@ namespace CozyAnimalTown
                 int n = GameManager.OverflowClearRows;
                 string rows = Loc.T(Loc.PluralEn(n, "bottom row", "bottom rows"),
                                     Loc.Plural(n, "нижний ряд", "нижних ряда", "нижних рядов"));
-                string head = Loc.T("Second chance", "Второй шанс");
                 string act  = Loc.T($"clear {n} {rows}", $"убрать {n} {rows}");
-                return head + "\n" + UiSymbols.Clap + " AD  " + act;
+                return Head() + "\n" + Sub(UiSymbols.Clap + " AD  " + act);
             }
         }
 
+        /// <summary>
+        /// Пропуск уровня за ролик. Факт рекламы теперь В САМОЙ ПОДПИСИ, а не только
+        /// в угловом бейдже: п.4.5.1 требует, чтобы игрок ДО нажатия понимал, что
+        /// сейчас будет реклама. Бейдж в углу легко не заметить, подпись — нет.
+        /// </summary>
         public static string SkipLevelBtn =>
-            Loc.T("Skip level\nand move on", "Пропустить уровень\nи идти дальше");
+            Head(Loc.T("Skip level", "Пропустить уровень")) + "\n" +
+            Sub(UiSymbols.Clap + " AD  " + Loc.T("and move on", "и идти дальше"));
 
         /// <summary>Перепройти только что пройденный уровень — ради трёх звёзд.</summary>
         public static string PlayAgainBtn => Loc.T("Play again", "Пройти заново");
