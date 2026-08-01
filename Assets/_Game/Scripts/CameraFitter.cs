@@ -11,7 +11,6 @@ namespace CozyAnimalTown
     public class CameraFitter : MonoBehaviour
     {
         Camera cam;
-        Camera bgCam;
         GameConfig cfg;
 
         /// <summary>
@@ -45,20 +44,11 @@ namespace CozyAnimalTown
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = cfg.bgColor;
 
-            // Фон рисует САМА основная камера (см. LateUpdate: на широком экране её вьюпорт
-            // растянут на весь кадр). Отдельная камера тут не годится: проект на URP, где
-            // базовая камера всё равно очищает свой вьюпорт, и clearFlags = Depth не
-            // композитит — из-за этого на границах колонки были вертикальные швы.
-            var go = new GameObject("SkyCamera");
-            bgCam = go.AddComponent<Camera>();
-            bgCam.orthographic     = true;
-            bgCam.depth            = cam.depth - 10f;
-            bgCam.cullingMask      = 0;         // только заливка полей при letterbox в портрете
-            bgCam.clearFlags       = CameraClearFlags.SolidColor;
-            bgCam.backgroundColor  = cfg.bgColor;
-            bgCam.rect             = new Rect(0f, 0f, 1f, 1f);
-            bgCam.allowMSAA        = false;
-            bgCam.useOcclusionCulling = false;
+            // Отдельной фоновой камеры больше нет. Она заливала поля при letterbox, но
+            // основная камера теперь всегда полноэкранная (см. LateUpdate), а её
+            // clearFlags = SolidColor и так закрывает кадр. В URP каждая базовая камера —
+            // это отдельный проход с culling, setup рендер-таргета и clear; держать такой
+            // проход ради полностью перекрытой заливки незачем.
         }
 
         public void TriggerShake(float intensity = 0.18f, float duration = 0.25f)
@@ -76,13 +66,24 @@ namespace CozyAnimalTown
             // фиксирован по ширине колонки — поле центрируется по вертикали, место под HUD остаётся.
             // Орто-размер задаёт ШИРИНА колонки — доска обязана влезать по горизонтали
             // целиком (11 ячеек + поля на рикошет).
-            cam.orthographicSize = (cfg.boardWidth * 0.5f + 0.6f) / ScreenColumn.Aspect;
+            // Камера ВСЕГДА занимает весь кадр, а орто-размер считается по более узкой из
+            // двух пропорций — колонки и самого экрана.
+            //
+            // Раньше в портрете вьюпорт равнялся ScreenColumn.Column(), и на телефонах
+            // выше 9:16 (а это почти все современные: 390×844 — это 0.462) сверху и снизу
+            // оставались полосы по 75-80 px, которые заливала SkyCamera плоским кремом.
+            // Фон CozyBackdrop снизу темнее и с зелёными «холмами», так что полоса
+            // обрывала их ровной горизонтальной линией — ровно тот случай, который
+            // запрещает п.5.9 («поля как заливка при масштабировании»).
+            //
+            // Размер доски в пикселях от правки не меняется: и там, и там он равен
+            // Screen.width / (2 * halfW) на юнит. Меняется только то, что в кадре теперь
+            // видно больше игрового фона вместо заливки.
+            float halfW = cfg.boardWidth * 0.5f + 0.6f;
+            float sa    = (float)Screen.width / Mathf.Max(1, Screen.height);
+            cam.orthographicSize = halfW / Mathf.Min(ScreenColumn.Aspect, sa);
+            cam.rect = new Rect(0f, 0f, 1f, 1f);
 
-            // На широком экране камера занимает ВЕСЬ кадр, а не колонку. Масштаб от этого
-            // не меняется (орто-размер — полувысота, а высота вьюпорта та же): просто
-            // становится видно мир по бокам от доски, и фон рисуется без швов.
-            // В портрете оставляем колонку — там поля добивает SkyCamera.
-            cam.rect = ScreenColumn.IsWide ? new Rect(0f, 0f, 1f, 1f) : ScreenColumn.Column();
 
             if (_shakeElapsed < _shakeDuration)
             {

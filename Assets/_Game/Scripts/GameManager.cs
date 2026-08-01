@@ -49,6 +49,12 @@ namespace CozyAnimalTown
         float _adBusyDeadline;    // страховка: SDK не прислал ни одного колбэка
         string _adPlacement = "";  // плейсмент текущего rewarded (для аналитики/таймаута)
         bool _adShownSent;
+        // Токен контекста награды. Инкрементится на каждом StartLevel. Пока грузится
+        // ролик, игрок может нажать «Ещё раз» — тогда награда приедет уже на другую
+        // попытку: +5 выстрелов на свежем уровне, State=Aiming поверх Resolving, а для
+        // skip_level — переход посреди начатой попытки. Сверяем токен и молча гасим.
+        int _adToken;
+        int _adTokenAtRequest = -1;
         float _activePlaySec;     // честный playtime: без рекламы и фоновой вкладки
         int  _pendingCloudLevel;  // облако пришло на тронутом уровне → применим на след. старте
 
@@ -87,6 +93,9 @@ namespace CozyAnimalTown
             && shotsLeft > 0 && shotsLeft <= 2 && board != null && board.PoppableCount > 0;
         const string KeyBomb    = "cat_bomb";
         const string KeyRainbow = "cat_rainbow";
+        // Маркеры «стартовые заряды уже выдавали» — отдельно от баланса, см. GrantOnUnlock.
+        public const string KeyBombGranted    = "cat_bomb_granted";
+        public const string KeyRainbowGranted = "cat_rainbow_granted";
         int bombCharges, rainbowCharges;
 
         public int BombCharges    => bombCharges;
@@ -282,6 +291,8 @@ namespace CozyAnimalTown
             _loseByOverflow    = false;
             _secondChanceCount = 0;
             _adBusy            = false;
+            _adToken++;        // награда от ролика прошлой попытки на эту доску не приедет
+            shooter.CancelShot();   // выстрел из прошлой попытки не должен приземлиться сюда
             levelDef           = LevelCatalog.Get(currentLevel);
             cfg.initialRows   = levelDef.rows;
             cfg.colorCount    = levelDef.colorCount;
@@ -414,7 +425,11 @@ namespace CozyAnimalTown
             _adBusy = true;
             _adPlacement = placement;
             _adShownSent = false;
+            _adTokenAtRequest = _adToken;   // к какой попытке относится награда
             _adBusyDeadline = Time.realtimeSinceStartup + 20f;   // SDK должен успеть открыть оверлей
+            // Кулдаун общий для rewarded и межстраничной: иначе после ролика за награду
+            // сразу же прилетала бы interstitial (например skip_level -> победа -> NextLevel).
+            _lastInterstitialTime = Time.realtimeSinceStartup;
             SubscribeRewarded();
             Analytics.AdRequest(placement);
             YandexBridge.ShowRewarded(placement);
@@ -430,23 +445,39 @@ namespace CozyAnimalTown
         /// <summary>Выдаёт стартовые заряды в момент разблокировки бонуса по уровню (радуга — Lv3, бомба — Lv7).</summary>
         void RefreshBonusUnlocks()
         {
-            rainbowCharges = GrantOnUnlock(KeyRainbow, RainbowUnlocked, "rainbow");
-            bombCharges    = GrantOnUnlock(KeyBomb,    BombUnlocked,    "bomb");
+            rainbowCharges = GrantOnUnlock(KeyRainbow, KeyRainbowGranted, RainbowUnlocked, "rainbow");
+            bombCharges    = GrantOnUnlock(KeyBomb,    KeyBombGranted,    BombUnlocked,    "bomb");
 #if UNITY_EDITOR
             if (RainbowUnlocked) rainbowCharges = 999;   // dev: удобно тестить (в билд не идёт)
             if (BombUnlocked)    bombCharges    = 999;
 #endif
         }
 
-        int GrantOnUnlock(string key, bool unlocked, string type)
+        /// <summary>
+        /// Выдаёт стартовые BonusStart зарядов ровно один раз — в момент разблокировки.
+        ///
+        /// Маркером «уже выдавали» служит ОТДЕЛЬНЫЙ ключ, а не наличие ключа с балансом.
+        /// Раньше проверялось `!PlayerPrefs.HasKey(key)`, но тот же ключ пишут ещё двое:
+        /// мерж облака (CloudSave кладёт в облако bomb=0 задолго до разблокировки, а на
+        /// следующей сессии условие `cloud.bomb >= 0` создаёт локальный ключ) и ежедневный
+        /// подарок (он доступен с 4-го уровня, бомба — с 7-го). В обоих случаях ключ
+        /// существовал ДО разблокировки, выдача молча пропускалась, и игрок получал 0 или 2
+        /// заряда вместо 10. В редакторе баг не воспроизводился: там LoadData отдаёт «{}»,
+        /// поля приходят −1, и ветка мержа не срабатывает.
+        ///
+        /// Берём максимум, а не присваиваем: у игрока уже могли накопиться заряды за рекламу.
+        /// </summary>
+        int GrantOnUnlock(string key, string grantedKey, bool unlocked, string type)
         {
             if (!unlocked) return 0;
-            if (!PlayerPrefs.HasKey(key))
+            if (PlayerPrefs.GetInt(grantedKey, 0) == 0)
             {
-                PlayerPrefs.SetInt(key, BonusStart); PlayerPrefs.Save();
+                PlayerPrefs.SetInt(key, Mathf.Max(PlayerPrefs.GetInt(key, 0), BonusStart));
+                PlayerPrefs.SetInt(grantedKey, 1);
+                PlayerPrefs.Save();
                 Analytics.BonusUnlocked(type, currentLevel);
             }
-            return PlayerPrefs.GetInt(key, BonusStart);
+            return PlayerPrefs.GetInt(key, 0);
         }
 
         /// <summary>Тап по бонусу «бомба»: заряжает следующий выстрел; если зарядов
@@ -488,7 +519,7 @@ namespace CozyAnimalTown
 
         /// <summary>
         /// Тап по пустому бонусу — сразу rewarded. Что это ролик и что дадут RefillAmount
-        /// зарядов, игрок видит на самом бейдже кнопки («▶ Реклама +3», AdLoc.RefillBadge) —
+        /// зарядов, игрок видит на самом бейдже кнопки (AdLoc.RefillBadge) —
         /// этого требует п.4.5.1, и лишний диалог подтверждения только резал бы конверсию.
         /// </summary>
         void RefillBonus(int specialId)
@@ -506,8 +537,7 @@ namespace CozyAnimalTown
         public void WatchAdForMidLevelShots()
         {
             if (_adBusy || !MidLevelOfferVisible) return;
-            _midOffered = true;
-            BeginRewarded("midlevel_shots");
+            BeginRewarded("midlevel_shots");   // _midOffered ставится по факту выдачи
         }
 
         public void SetPaused(bool value)
@@ -600,6 +630,14 @@ namespace CozyAnimalTown
             YandexBridge.RewardedEvent      -= OnRewarded;
             YandexBridge.RewardedErrorEvent -= OnRewardedError;
             _adBusy = false;
+
+            // Награда относится к попытке, которой уже нет: пока грузился ролик, игрок
+            // перезапустил уровень или ушёл дальше. Применять её к новой доске нельзя.
+            if (_adTokenAtRequest != _adToken)
+            {
+                Analytics.AdError(id, "stale_context");
+                return;
+            }
             Analytics.AdRewarded(id);
 
             switch (id)
@@ -631,8 +669,8 @@ namespace CozyAnimalTown
                     });
                     break;
 
-                // Пополнение за rewarded — по RefillAmount зарядов (стартовые 10 при
-                // разблокировке; +3 за 30-сек ролик — осмысленная сделка, +1 конвертил плохо).
+                // Пополнение за rewarded — по RefillAmount зарядов (стартовые BonusStart
+                // при разблокировке; RefillAmount за ролик — осмысленная сделка, +1 конвертил плохо).
                 case "refill_bomb":
                     bombCharges += RefillAmount;
                     PlayerPrefs.SetInt(KeyBomb, bombCharges);
@@ -640,7 +678,10 @@ namespace CozyAnimalTown
                     break;
 
                 // Оффер прямо в игре: просто доливаем выстрелы, состояние доски не трогаем.
+                // Флаг «оффер израсходован» ставим ЗДЕСЬ, а не при запросе: при no-fill
+                // или закрытом до награды ролике кнопка иначе сгорала бы без выдачи.
                 case "midlevel_shots":
+                    _midOffered = true;
                     shotsLeft += MidLevelShots;
                     break;
 
@@ -695,6 +736,10 @@ namespace CozyAnimalTown
         void TryShowInterstitial()
         {
             if (currentLevel < 2) return; // не дёргаем рекламой новичков (онбординг)
+            // Rewarded уже запрошен или оверлей на экране — межстраничная поверх ролика
+            // за награду недопустима. Окно ловится реально: между BeginRewarded и onOpen
+            // AdShowing ещё false, а кнопка «Ещё раз» на экране поражения кликабельна.
+            if (_adBusy || YandexBridge.AdShowing) return;
             // Отсчёт от запроса, а не от показа: при ошибке тоже не долбим SDK.
             if (Time.realtimeSinceStartup - _lastInterstitialTime < InterstitialCooldown) return;
             _lastInterstitialTime = Time.realtimeSinceStartup;

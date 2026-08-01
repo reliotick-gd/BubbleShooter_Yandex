@@ -14,7 +14,7 @@ namespace CozyAnimalTown
         public static string AdWord => Loc.T("AD", "Реклама");
 
         /// <summary>
-        /// Подпись на бейдже у иконки бонуса: «🎬 AD +3». Держит оба факта, которых требует
+        /// Подпись на бейдже у иконки бонуса: «🎬 AD +5». Держит оба факта, которых требует
         /// п.4.5.1 — что сейчас будет ролик (хлопушка + маркер AD) и сколько за него дадут.
         /// Раньше здесь был голый треугольник, за это черновик и сняли.
         ///
@@ -39,17 +39,25 @@ namespace CozyAnimalTown
         // новый рекорд» лезла на маскота и обещала соревнование там, где его нет.
         // Очки продолжают копиться и уходят в лидерборд (Progress → CloudSave).
         public static string DailyTitle  => Loc.T("Daily gift", "Ежедневный подарок");
-        public static string DailyReward
+
+        /// <summary>
+        /// Состав подарка на конкретном уровне. Подарок открывается с 4-го, а бомба —
+        /// с 7-го, поэтому на 4-6 уровнях обещать бомбу нельзя: заряды по закрытому
+        /// бустеру не начисляются (DailyBonus.Claim), и игрок не увидел бы обещанного.
+        /// </summary>
+        public static string DailyReward(int level)
         {
-            get
-            {
-                int r = DailyBonus.RainbowReward, b = DailyBonus.BombReward;
-                string rw = Loc.T(Loc.PluralEn(r, "rainbow", "rainbows"),
-                                  Loc.Plural(r, "радуга", "радуги", "радуг"));
-                string bw = Loc.T(Loc.PluralEn(b, "bomb", "bombs"),
-                                  Loc.Plural(b, "бомба", "бомбы", "бомб"));
-                return Loc.T($"+{r} {rw} and +{b} {bw}", $"+{r} {rw} и +{b} {bw}");
-            }
+            int r = DailyBonus.RainbowReward, b = DailyBonus.BombReward;
+            string rw = Loc.T(Loc.PluralEn(r, "rainbow", "rainbows"),
+                              Loc.Plural(r, "радуга", "радуги", "радуг"));
+            string bw = Loc.T(Loc.PluralEn(b, "bomb", "bombs"),
+                              Loc.Plural(b, "бомба", "бомбы", "бомб"));
+
+            bool rainbow = DailyBonus.RainbowUnlocked(level);
+            bool bomb    = DailyBonus.BombUnlocked(level);
+            if (rainbow && bomb) return Loc.T($"+{r} {rw} and +{b} {bw}", $"+{r} {rw} и +{b} {bw}");
+            if (bomb)            return $"+{b} {bw}";
+            return $"+{r} {rw}";
         }
         public static string DailyTake => Loc.T("Take it!", "Забрать!");
 

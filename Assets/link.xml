@@ -1,8 +1,34 @@
 <linker>
-  <!-- Наш код: не трогать ничего -->
+  <!--
+    ЗАЧЕМ ЭТОТ ФАЙЛ ТАКОЙ КОРОТКИЙ.
+
+    Раньше здесь стояли <assembly preserve="all"/> на CoreModule, UIModule, UnityEngine.UI,
+    TextRendering, Audio, JSONSerialize, InputSystem и TextMeshPro. Это полностью отключало
+    Managed Stripping = High: линкер обязан был сохранить сборки целиком. Замер по
+    Library/Bee/artifacts/WebGL/ManagedStripped последнего билда:
+
+      UnityEngine.CoreModule.dll   1 754 624 из 1 998 760  — срезано 12 %
+      UnityEngine.UIElementsModule 1 693 696 из 2 262 440  — срезано 25 %
+      Unity.InputSystem.dll        1 095 680 из 1 262 592  — срезано 13 %
+      Unity.TextMeshPro.dll          444 928 из   508 928
+      UnityEngine.UI.dll             274 944 из   310 272
+
+    Хуже того, preserve="all" на UnityEngine.UI не давал срезать её ссылку на
+    UIElementsModule, а тот по отчёту линкера тянул за собой IMGUI, InputForUI,
+    InputLegacy, Properties, HierarchyCore, Physics и PhysicsBackendPhysX —
+    то есть нативный PhysX в двухмерную игру без единого коллайдера.
+
+    Стриппер и так считает достижимость от Assembly-CSharp, а она сохранена целиком.
+    Всё, что игра реально вызывает, останется. Здесь перечислено только то, до чего
+    статический анализ дотянуться не может.
+  -->
+
+  <!-- Наш код: точка входа для всего графа достижимости + JsonUtility гоняет
+       рефлексию по SaveData/LevelDef, поэтому сохраняем целиком. -->
   <assembly fullname="Assembly-CSharp" preserve="all"/>
 
-  <!-- mscorlib: коллекции, используемые из кода (страховка от High stripping) -->
+  <!-- Дженерик-коллекции: IL2CPP делит реализации между инстанцированиями, и при
+       High-стриппинге редко используемые методы могут не сгенерироваться. -->
   <assembly fullname="mscorlib">
     <type fullname="System.Collections.Generic.Dictionary`2" preserve="all"/>
     <type fullname="System.Collections.Generic.HashSet`1"    preserve="all"/>
@@ -11,31 +37,16 @@
     <type fullname="System.Collections.Generic.List`1"       preserve="all"/>
   </assembly>
 
-  <!-- Unity core — PlayerPrefs, JsonUtility, Application, Screen и т.д. -->
-  <assembly fullname="UnityEngine.CoreModule"         preserve="all"/>
-  <assembly fullname="UnityEngine.JSONSerializeModule" preserve="all"/>
-  <assembly fullname="UnityEngine.AudioModule"         preserve="all"/>
-
-  <!-- Input System -->
-  <assembly fullname="UnityEngine.InputSystem" preserve="all"/>
-  <assembly fullname="Unity.InputSystem"        preserve="all"/>
-
-  <!-- uGUI: Canvas/Text/Image/Button/ScrollRect/EventSystem из кода -->
-  <assembly fullname="UnityEngine.UIModule"           preserve="all"/>
-  <assembly fullname="UnityEngine.UI"                 preserve="all"/>
-  <assembly fullname="UnityEngine.TextRenderingModule" preserve="all"/>
-
-  <!-- 2D/Rendering для SpriteRenderer, Sprite, Texture2D -->
-  <assembly fullname="UnityEngine.CoreModule">
-    <type fullname="UnityEngine.Sprite"         preserve="all"/>
-    <type fullname="UnityEngine.Texture2D"      preserve="all"/>
-    <type fullname="UnityEngine.SpriteRenderer" preserve="all"/>
-  </assembly>
-
-  <!-- TextCore + TMP: DynamicFont создаёт SDF-шрифт из TTF в рантайме через
-       нативный FontEngine (вызовы по рефлексии). При Managed Stripping = High
-       это надо явно сохранить, иначе динамический шрифт может отвалиться. -->
+  <!-- DynamicFont.CreateFontAsset строит SDF-атлас из CozyFont.ttf в рантайме через
+       нативный FontEngine, вызовы идут в обход управляемых ссылок. Обе сборки
+       маленькие (55 КБ + 309 КБ), режем их — рискуем остаться вообще без шрифта. -->
   <assembly fullname="UnityEngine.TextCoreFontEngineModule" preserve="all"/>
   <assembly fullname="UnityEngine.TextCoreTextEngineModule" preserve="all"/>
-  <assembly fullname="Unity.TextMeshPro"                    preserve="all"/>
+
+  <!-- TMP грузит свои настройки и шрифт через Resources.Load по строковому пути:
+       статический анализ такую ссылку не видит, а поля нужны при десериализации. -->
+  <assembly fullname="Unity.TextMeshPro">
+    <type fullname="TMPro.TMP_Settings"  preserve="all"/>
+    <type fullname="TMPro.TMP_FontAsset" preserve="all"/>
+  </assembly>
 </linker>

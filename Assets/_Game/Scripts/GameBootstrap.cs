@@ -36,6 +36,26 @@ namespace CozyAnimalTown
                 if (hadLocalSave) CloudSave.MarkCloudWipe();
             }
 
+            // Разовый бэкфилл маркеров выдачи стартовых зарядов (см. GameManager.GrantOnUnlock).
+            // Признаком «10 зарядов уже выдавали» раньше служило само наличие ключа
+            // cat_bomb / cat_rainbow. Теперь маркер отдельный, и без бэкфилла игроки,
+            // которые давно прошли уровень разблокировки, получили бы выдачу повторно.
+            if (PlayerPrefs.GetInt("cat_grant_backfill", 0) == 0)
+            {
+                int lvl = PlayerPrefs.GetInt("cat_level", 1);
+                if (PlayerPrefs.HasKey("cat_rainbow") && lvl >= GameManager.RainbowUnlockLevel)
+                    PlayerPrefs.SetInt(GameManager.KeyRainbowGranted, 1);
+                if (PlayerPrefs.HasKey("cat_bomb") && lvl >= GameManager.BombUnlockLevel)
+                    PlayerPrefs.SetInt(GameManager.KeyBombGranted, 1);
+                PlayerPrefs.SetInt("cat_grant_backfill", 1);
+                PlayerPrefs.Save();
+            }
+
+            // Без явного лимита WebGL идёт по requestAnimationFrame, то есть на 120-герцовом
+            // телефоне рисует 120 кадров: вдвое больше работы и тепла там, где и так тесно.
+            // vSyncCount в обоих уровнях качества = 0, так что двойного ограничения не будет.
+            Application.targetFrameRate = 60;
+
             // должно быть готово до первого текста
             DynamicFont.Ensure();
             UiSymbols.Init();

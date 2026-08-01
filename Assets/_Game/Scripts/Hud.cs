@@ -32,7 +32,8 @@ namespace CozyAnimalTown
         GameObject _midOfferBtn;          // оффер «+5 выстрелов» во время игры
         RectTransform _rtMidOffer;
         GameObject dailyRoot;             // модалка ежедневного подарка
-        const int DailyFromLevel = 4;    // раньше — накладывается на онбординг
+        const int DailyFromLevel = 4;
+        int _shownNextAnimal = -1;   // кэш подписи «усложнение через N ур.», см. UpdateMidOffer    // раньше — накладывается на онбординг
         readonly TMP_Text[] _winStars = new TMP_Text[3];
 
         GameObject resultRoot, winGroup, loseGroup, pauseRoot;
@@ -154,10 +155,19 @@ namespace CozyAnimalTown
                 new Vector2(0f, -86f), new Vector2(720f, 70f));
 
             // Показываем сами бустеры, а не абстрактный «подарок» — понятно, что дают.
-            MakeGiftIcon(box.transform, GameConfig.RainbowId, -110f);
-            MakeGiftIcon(box.transform, GameConfig.BombId,     110f);
+            // Заблокированный бустер не рисуем: на 4-6 уровнях бомба ещё под замком и
+            // заряды по ней не начисляются, значит и в подарке её быть не должно.
+            bool giftRainbow = DailyBonus.RainbowUnlocked(gm.CurrentLevel);
+            bool giftBomb    = DailyBonus.BombUnlocked(gm.CurrentLevel);
+            if (giftRainbow && giftBomb)
+            {
+                MakeGiftIcon(box.transform, GameConfig.RainbowId, -110f);
+                MakeGiftIcon(box.transform, GameConfig.BombId,     110f);
+            }
+            else if (giftBomb)    MakeGiftIcon(box.transform, GameConfig.BombId,    0f);
+            else                  MakeGiftIcon(box.transform, GameConfig.RainbowId, 0f);
 
-            var reward = UiKit.Label(box.transform, AdLoc.DailyReward, 34, TextAnchor.MiddleCenter, BrownSoft);
+            var reward = UiKit.Label(box.transform, AdLoc.DailyReward(gm.CurrentLevel), 34, TextAnchor.MiddleCenter, BrownSoft);
             reward.enableAutoSizing = true; reward.fontSizeMin = 26; reward.fontSizeMax = 34;
             UiKit.Anchor(reward.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(0f, -80f), new Vector2(700f, 80f));
@@ -184,7 +194,7 @@ namespace CozyAnimalTown
 
         void ClaimDaily()
         {
-            if (DailyBonus.Claim()) Analytics.DailyClaimed(gm.CurrentLevel);
+            if (DailyBonus.Claim(gm.CurrentLevel)) Analytics.DailyClaimed(gm.CurrentLevel);
             dailyRoot.SetActive(false);
             gm.RefreshCharges();
         }
@@ -325,9 +335,10 @@ namespace CozyAnimalTown
         }
 
         // Координаты широкой раскладки — абсолютные в дизайн-пространстве. В широком режиме
-        // ScreenColumn.Aspect фиксирован (0.82), значит ColumnFitter.DesignHeight всегда 1317,
+        // ScreenColumn.Aspect фиксирован (0.915), значит ColumnFitter.DesignHeight всегда 1180,
         // и Y можно задавать числами: они не поедут от формы экрана. Значения сняты с
-        // утверждённого референса (1920×1080, масштаб 0.82).
+        // утверждённого референса (1920×1080). А вот X панелей зависит от ширины экрана,
+        // поэтому ниже они зажаты по краю сцены — иначе на 4:3 и 16:10 HUD уезжает за кадр.
         void WideLayout()
         {
             Reparent(_rtBack, stage); Reparent(_rtGear, stage); Reparent(_rtLb, stage);
@@ -340,12 +351,31 @@ namespace CozyAnimalTown
             float lp   = -(half + ColumnFitter.DesignW * 0.5f) * 0.5f + 55f;
             float rp   =  (half + ColumnFitter.DesignW * 0.5f) * 0.5f + 4f;
 
+            // Зажимаем панели по краю сцены. Координаты сняты с референса 1920×1080
+            // (аспект 1.78), где half = 1049 и запаса хватало, но IsWide включается уже
+            // с 1.15: на 1024×768 half = 787, и полоска зверей (ширина 520 -> край lp−270)
+            // вылезала за экран почти на сотню единиц, кнопка «назад» обрезалась
+            // наполовину, а шестерёнка с абсолютным X = 949 уезжала целиком.
+            //
+            // Пороги подобраны так, чтобы на 16:9 не сработать вообще и оставить
+            // утверждённую раскладку нетронутой — правка нужна только на узких широких
+            // экранах. Слева самый широкий элемент — полоска зверей (520), справа —
+            // мид-оффер (400).
+            const float Edge = 12f;
+            lp = Mathf.Max(lp, -half + 260f + Edge - 10f);   // 16:9: −749 < −608, не срабатывает
+            rp = Mathf.Min(rp,  half - 200f - Edge);         // 16:9:  837 > 798, не срабатывает
+
             var mid = new Vector2(0.5f, 0.5f);
+
+            // Шестерёнка и таблица стояли по абсолютным X (949 и 813): их правый край
+            // 1008 требует half >= 1008, то есть аспекта от 1.71. Привязываем к краю сцены.
+            float gearX = Mathf.Min(949f, half - 59f - Edge); // 16:9: 978 > 949, не срабатывает
+            float lbX   = gearX - 136f;
 
             // Стрелка «назад» — в нижний угол, подальше от бонусов и настроек.
             UiKit.Anchor(_rtBack, mid, mid, new Vector2(lp - 178f, -481f), new Vector2(114f, 114f));
-            UiKit.Anchor(_rtLb,   mid, mid, new Vector2(813f, 424f), new Vector2(118f, 118f));
-            UiKit.Anchor(_rtGear, mid, mid, new Vector2(949f, 424f), new Vector2(118f, 118f));
+            UiKit.Anchor(_rtLb,   mid, mid, new Vector2(lbX,   424f), new Vector2(118f, 118f));
+            UiKit.Anchor(_rtGear, mid, mid, new Vector2(gearX, 424f), new Vector2(118f, 118f));
 
             // Левая панель: счётчики сверху, под ними — легенда зверей 4×2.
             UiKit.Anchor(_rtPillL, mid, mid, new Vector2(lp - 110f, 400f), new Vector2(208f, 144f));
@@ -1008,10 +1038,19 @@ namespace CozyAnimalTown
                 if (show) Analytics.MidLevelOffered(gm.CurrentLevel);
             }
 
+            // Текст меняется раз за уровень, а UpdateMidOffer крутится каждый кадр. Без
+            // кэша по значению AdLoc.NextAnimal строила ОБА варианта строки (RU и EN — это
+            // аргументы Loc.T, вычисляются всегда), то есть на десктопе давала порядка
+            // 12 КБ мусора в секунду на ровном месте. Boehm-сборщик в WebGL однопоточный
+            // и останавливает мир, так что лишний мусор здесь дороже, чем кажется.
             if (_capNextAnimal != null && _capNextAnimal.gameObject.activeSelf)
             {
                 int n = LevelsToNextAnimal();
-                _capNextAnimal.text = n > 0 ? AdLoc.NextAnimal(n) : AdLoc.AllAnimals;
+                if (n != _shownNextAnimal)
+                {
+                    _shownNextAnimal = n;
+                    _capNextAnimal.text = n > 0 ? AdLoc.NextAnimal(n) : AdLoc.AllAnimals;
+                }
             }
         }
 

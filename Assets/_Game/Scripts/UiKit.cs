@@ -242,19 +242,44 @@ namespace CozyAnimalTown
             public RectTransform target;
             public float grow, dy;
 
+            // Последнее применённое состояние. Геометрия тени меняется только при смене
+            // раскладки и при переносе элемента, а LateUpdate до этого безусловно писал
+            // пять свойств RectTransform каждый кадр у каждой из ~15 живых теней —
+            // сотни interop-вызовов в кадр на IL2CPP ради неизменившихся значений.
+            Transform _lastParent;
+            Vector2 _lastMin, _lastMax, _lastPivot, _lastSize, _lastPos;
+            bool _applied;
+
             void LateUpdate()
             {
                 if (target == null) { Destroy(gameObject); return; }
+                // Хозяин скрыт — тень всё равно не видна (у неё гасится Image), значит и
+                // возить её незачем. Особенно это про mid-offer: тень ему сосед, а не
+                // ребёнок, поэтому она продолжала работать даже при выключенной кнопке.
+                if (!target.gameObject.activeInHierarchy) return;
+
                 var rt = (RectTransform)transform;
-                if (rt.parent != target.parent) rt.SetParent(target.parent, false);
+                if (rt.parent != target.parent) { rt.SetParent(target.parent, false); _applied = false; }
                 // Только если тень уехала ВПЕРЁД хозяина — иначе индексы будут мигать каждый кадр.
                 if (rt.GetSiblingIndex() > target.GetSiblingIndex())
                     rt.SetSiblingIndex(target.GetSiblingIndex());
 
+                Vector2 size = target.sizeDelta + new Vector2(grow, grow);
+                Vector2 pos  = target.anchoredPosition + new Vector2(0f, dy);
+                if (_applied && _lastParent == target.parent
+                    && _lastMin == target.anchorMin && _lastMax == target.anchorMax
+                    && _lastPivot == target.pivot && _lastSize == size && _lastPos == pos)
+                    return;
+
                 rt.anchorMin = target.anchorMin; rt.anchorMax = target.anchorMax;
                 rt.pivot = target.pivot;
-                rt.sizeDelta = target.sizeDelta + new Vector2(grow, grow);
-                rt.anchoredPosition = target.anchoredPosition + new Vector2(0f, dy);
+                rt.sizeDelta = size;
+                rt.anchoredPosition = pos;
+
+                _lastParent = target.parent;
+                _lastMin = target.anchorMin; _lastMax = target.anchorMax;
+                _lastPivot = target.pivot; _lastSize = size; _lastPos = pos;
+                _applied = true;
             }
         }
 

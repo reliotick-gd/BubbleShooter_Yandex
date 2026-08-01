@@ -186,13 +186,19 @@ mergeInto(LibraryManager.library, {
   },
 
   // LoadingAPI.ready(): игра загрузилась и готова к взаимодействию (титул на экране).
+  // Возвращает 1, если вызов реально дошёл до SDK. C#-сторона защёлкивает «отправлено»
+  // только по единице: Unity может стартовать раньше, чем появится window.ysdk
+  // (ветка таймаута init и .catch в index.html), и тогда сигнал готовности площадка
+  // не получит вообще — повторить будет некому.
   YG_GameReady: function () {
     try {
       if (window.ysdk && window.ysdk.features && window.ysdk.features.LoadingAPI) {
         window.ysdk.features.LoadingAPI.ready();
         console.log('[YG] LoadingAPI.ready()');
+        return 1;
       }
     } catch (e) { }
+    return 0;
   },
 
   // Показом по умолчанию управляет ПЛАТФОРМА (галка «использовать API» в консоли
@@ -252,12 +258,18 @@ mergeInto(LibraryManager.library, {
   YG_LoadLeaderboard: function (namePtr) {
     var name = UTF8ToString(namePtr);
     var reply = function (json) { SendMessage('YandexBridge', 'OnLeaderboardLoaded', json); };
-    var empty = '{"userRank":0,"entries":[]}';
-    if (!window.ysdk) { reply(empty); return; }
+    // Пустая таблица и НЕУДАВШАЯСЯ загрузка — разные вещи: в первом случае честно
+    // «стань первым», во втором надо сказать про ошибку и дать повторить. Раньше
+    // отсюда во всех трёх ситуациях (нет SDK, reject промиса, реально пусто) уходил
+    // один и тот же литерал, и при обрыве сети игрок видел заведомую неправду.
+    // Реально пустая таблица приезжает обычным путём — с entries: [] и без флага.
+    var errJson = '{"userRank":0,"entries":[],"error":true}';
+    if (!window.ysdk) { reply(errJson); return; }
 
     // сперва uniqueID игрока — надёжнее для подсветки «это я», чем сравнение рангов
     var myId = '';
     var load = function () {
+     try {
       var opts = { quantityTop: 20, includeUser: true, quantityAround: 3 };
       // актуальный API — ysdk.leaderboards.getEntries; старый — фолбэк
       var promise = (window.ysdk.leaderboards && window.ysdk.leaderboards.getEntries)
@@ -287,8 +299,9 @@ mergeInto(LibraryManager.library, {
         reply(JSON.stringify(out));
       }).catch(function (e) {
         console.warn('[YG] getLeaderboardEntries error', e);
-        reply(empty);
+        reply(errJson);
       });
+     } catch (ex) { console.warn('[YG] leaderboard load failed', ex); reply(errJson); }
     };
     // Разрешение на персональные данные НЕ запрашиваем: на площадке так не принято,
     // и попадание в таблицу от него не зависит. У кого имя открыто — оно придёт само,

@@ -26,8 +26,11 @@ namespace CozyAnimalTown
         public static string Lang { get; private set; } = "en";
         public static event Action<string> LangEvent;
 
-        // Имя лидерборда в консоли разработчика Яндекса; рекорд = максимальный уровень.
-        public const string LeaderboardName = "bbShTablica";
+        // Имя лидерборда в консоли разработчика Яндекса; рекорд = сумма звёзд (Progress.TotalStars).
+        // Таблица заведена заново: в старой bbShTablica остались значения из эпохи очков
+        // (четырёхзначные), и они навсегда висели бы выше любого честного результата,
+        // максимум которого теперь 90 = 30 уровней × 3 звезды.
+        public const string LeaderboardName = "BubbleShooterLadder";
 
         public static event Action         SDKReadyEvent;
         public static event Action<string> RewardedEvent;
@@ -44,7 +47,7 @@ namespace CozyAnimalTown
         [DllImport("__Internal")] static extern void YG_LoadData();
         [DllImport("__Internal")] static extern void YG_GameplayStart();
         [DllImport("__Internal")] static extern void YG_GameplayStop();
-        [DllImport("__Internal")] static extern void YG_GameReady();
+        [DllImport("__Internal")] static extern int  YG_GameReady();   // 1 = дошло до SDK
         [DllImport("__Internal")] static extern void YG_ShowBanner();
         [DllImport("__Internal")] static extern void YG_SetLeaderboard(string name, int score);
         [DllImport("__Internal")] static extern void YG_LoadLeaderboard(string name);
@@ -81,6 +84,9 @@ namespace CozyAnimalTown
             // игрового canvas, макет 9:16 не страдает.
 #if UNITY_WEBGL && !UNITY_EDITOR
             YG_ShowBanner();
+            // Титул мог появиться раньше, чем SDK: тогда GameReady() отработал вхолостую
+            // и _readySent остался false. Теперь ysdk на месте — досылаем готовность.
+            GameReady();
 #endif
             SDKReadyEvent?.Invoke();
         }
@@ -173,9 +179,30 @@ namespace CozyAnimalTown
 
         float _tsBeforeOverlay = 1f;   // уважаем возможный timeScale=0 паузы игры
 
+        // Сторож зависшего оверлея. OverlayOpened ставит timeScale = 0 и глушит звук,
+        // а снимается это только из OverlayClosed. Если SDK прислал onOpen (или
+        // game_api_pause) и не прислал парного события — например рекламный iframe
+        // умер или диалог закрыли навигацией, — игра остаётся замороженной навсегда,
+        // до перезагрузки страницы. Страховка в GameManager.Update тут не спасает:
+        // она специально отодвигает дедлайн, пока AdShowing == true.
+        // 180 секунд с запасом перекрывают самый длинный ролик.
+        const float OverlayWatchdog = 180f;
+        float _overlayOpenedAt = -1f;
+
+        void Update()
+        {
+            if (!AdShowing || _overlayOpenedAt < 0f) return;
+            if (Time.realtimeSinceStartup - _overlayOpenedAt < OverlayWatchdog) return;
+            Debug.LogWarning("[YG] оверлей висит дольше " + OverlayWatchdog + " с — снимаем принудительно");
+            _adDepth = 0;
+            _platformPaused = false;
+            OverlayClosed();
+        }
+
         void OverlayOpened()
         {
             AdShowing = true;
+            _overlayOpenedAt = Time.realtimeSinceStartup;
             ApplyAudio();
             _tsBeforeOverlay = Time.timeScale;
             Time.timeScale = 0f;
@@ -186,6 +213,7 @@ namespace CozyAnimalTown
         void OverlayClosed()
         {
             AdShowing = false;
+            _overlayOpenedAt = -1f;
             ApplyAudio();   // вернёт звук, только если мьют/фоновая вкладка не активны
             Time.timeScale = _tsBeforeOverlay;
             if (_resumeGameplayAfterAd) GameplayStart();
@@ -220,9 +248,12 @@ namespace CozyAnimalTown
         public static void GameReady()
         {
             if (_readySent) return;
-            _readySent = true;
 #if UNITY_WEBGL && !UNITY_EDITOR
-            YG_GameReady();
+            // Защёлкиваем только по факту успеха: если ysdk ещё не подъехал, попытку
+            // повторит OnSDKReady. Иначе сигнал готовности терялся молча.
+            _readySent = YG_GameReady() == 1;
+#else
+            _readySent = true;
 #endif
         }
 

@@ -120,9 +120,11 @@ YAML-ассеты (.asset/.meta/ProjectSettings) писать UTF-8 БЕЗ BOM (
 - **Sticky-баннер**: `YG_ShowBanner` (showBannerAdv + getBannerAdvStatus-guard), зовётся из
   `OnSDKReady`, висит всегда. Показом по умолчанию рулит платформа; галку «Использовать API
   для показа sticky-баннера» в консоли НЕ ставить (она для скрытия баннера на старте).
-- **Лидерборд** — техимя `YandexBridge.LeaderboardName = "bbShTablica"` (создать в консоли,
-  тип «лучший результат», счёт = максимальный уровень). Сабмит: `CloudSave.Save` →
-  `SetLeaderboardScore(level)`; jslib проверяет `isAvailableMethod` (гости молча пропускаются).
+- **Лидерборд** — техимя `YandexBridge.LeaderboardName = "BubbleShooterLadder"` (создать в
+  консоли, тип «лучший результат», счёт = сумма звёзд, максимум 90). Старая `bbShTablica`
+  мертва: там лежат значения из эпохи очков, они бы навсегда висели выше любого честного
+  результата. Сабмит: `CloudSave.Save` →
+  `SetLeaderboardScore(Progress.TotalStars)`; jslib проверяет `isAvailableMethod` (гости молча пропускаются).
   Просмотр: кнопка в HUD слева от шестерёнки (PNG `Icons/leaderboard.png`, Material Icons;
   процедурный подиум-фолбэк) → `GameManager.OpenLeaderboard()` (`_lbOpen` в InputBlocked) →
   `LeaderboardScreen.cs`: тёмный экран в стиле нативной таблицы Яндекса — топ-20 +
@@ -214,7 +216,7 @@ pagehide → session_end. ProjectSettings: `webGLTemplate: PROJECT:YandexGames`.
    лого в игре — менять синхронно!), описание RU/EN с ключами «бабл шутер», «bubble shooter»,
    «шарики стрелялка», иконка 512×512, обложка, скриншоты (≥70% геймплея), категория,
    возраст, «управление мышью и тачем», ориентация: обе (макет 9:16 везде).
-   Плюс: **лидерборд `bbShTablica`** (тип «лучший результат», по убыванию, без десятичных) и
+   Плюс: **лидерборд `BubbleShooterLadder`** (тип «лучший результат», по убыванию, без десятичных) и
    **галка управления sticky-баннером через API**.
 2. **Создать счётчик Яндекс.Метрики** → вписать номер в `index.html` (`YM_COUNTER_ID`).
    Завести цели «JavaScript-событие» по списку из §4 (минимум: level_start, level_complete,

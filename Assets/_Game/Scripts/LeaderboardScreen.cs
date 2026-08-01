@@ -13,7 +13,10 @@ namespace CozyAnimalTown
         // поля заполняет JsonUtility рефлексией — CS0649 ложный
 #pragma warning disable 649
         [Serializable] class LbEntry { public int rank; public long score; public string name; public string avatar; public bool isUser; }
-        [Serializable] class LbData  { public int userRank; public LbEntry[] entries; }
+        // error различает «таблица пуста» и «загрузить не удалось» — раньше и то и другое
+        // приезжало одинаковым пустым списком, и при обрыве сети игроку показывали
+        // «Пока пусто — стань первым!», то есть заведомую неправду.
+        [Serializable] class LbData  { public int userRank; public LbEntry[] entries; public bool error; }
 #pragma warning restore 649
 
         const float RowH    = 116f;
@@ -70,6 +73,23 @@ namespace CozyAnimalTown
 
             YandexBridge.LeaderboardLoadedEvent += OnData;
             YandexBridge.RequestLeaderboard();
+            _timeoutCo = StartCoroutine(LoadTimeout());
+        }
+
+        Coroutine _timeoutCo;
+
+        /// <summary>
+        /// Ответа может не прийти вообще — например промис SDK не резолвится. Без этого
+        /// экран навсегда оставался на «Загрузка…»: подписка живёт до закрытия, а других
+        /// способов узнать о провале нет.
+        /// </summary>
+        IEnumerator LoadTimeout()
+        {
+            yield return new WaitForSecondsRealtime(8f);
+            if (_closing || _status == null) yield break;
+            YandexBridge.LeaderboardLoadedEvent -= OnData;
+            _status.gameObject.SetActive(true);
+            _status.text = Loc.T("Couldn't load the table", "Не удалось загрузить таблицу");
         }
 
         void OnDestroy()
@@ -130,10 +150,17 @@ namespace CozyAnimalTown
             try { data = JsonUtility.FromJson<LbData>(json) ?? new LbData(); }
             catch { data = new LbData(); }
             var entries = data.entries ?? new LbEntry[0];
+            if (_timeoutCo != null) { StopCoroutine(_timeoutCo); _timeoutCo = null; }
 
             if (entries.Length == 0)
             {
-                _status.text = Loc.T("No records yet — be the first!", "Пока пусто — стань первым!");
+                _status.text = data.error
+                    ? Loc.T("Couldn't load the table", "Не удалось загрузить таблицу")
+                    : Loc.T("No records yet — be the first!", "Пока пусто — стань первым!");
+                // Подсказку про вход показываем и здесь: раньше ранний return делал её
+                // недостижимой ровно в том случае, когда она нужнее всего — гостю,
+                // которому таблица пришла пустой.
+                if (!data.error && data.userRank <= 0) BuildSignInHint(-120f);
                 return;
             }
             _status.gameObject.SetActive(false);
@@ -154,18 +181,23 @@ namespace CozyAnimalTown
             // гостю — подсказка, почему его нет в таблице
             if (data.userRank <= 0)
             {
-                // Без упоминания чужого товарного знака: модерация сняла черновик по п.3.5
-                // именно за строку «Войди в Яндекс…» на этом экране.
-                var hint = UiKit.Label(_content, Loc.T(
-                        "Sign in to join the leaderboard",
-                        "Войди в аккаунт, чтобы попасть в таблицу"),
-                    30, TextAnchor.MiddleCenter, TxtGrey);
-                UiKit.Anchor(hint.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                    new Vector2(0f, y - 40f), new Vector2(940f, 60f));
+                BuildSignInHint(y - 40f);
                 y -= 90f;
             }
 
             _content.sizeDelta = new Vector2(0f, -y + 20f);
+        }
+
+        /// <summary>Подсказка гостю. Без упоминания чужого товарного знака: модерация
+        /// сняла черновик по п.3.5 именно за строку «Войди в Яндекс…» на этом экране.</summary>
+        void BuildSignInHint(float y)
+        {
+            var hint = UiKit.Label(_content, Loc.T(
+                    "Sign in to join the leaderboard",
+                    "Войди в аккаунт, чтобы попасть в таблицу"),
+                30, TextAnchor.MiddleCenter, TxtGrey);
+            UiKit.Anchor(hint.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, y), new Vector2(940f, 60f));
         }
 
         void BuildRow(LbEntry e, float y)

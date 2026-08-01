@@ -27,7 +27,11 @@ namespace CozyAnimalTown
             go.transform.SetParent(canvas.transform, false);
             _overlay = go.AddComponent<Image>();
             _overlay.color = new Color(1f, 0.97f, 0.90f, 0f);
-            _overlay.raycastTarget = false;
+            // raycastTarget обязателен: CanvasGroup.blocksRaycasts не превращает графику,
+            // исключённую из рейкаста, в блокер, и клики продолжали проходить в HudCanvas
+            // сквозь оверлей перехода. Пока не идёт переход, блокировку снимает
+            // CanvasGroup.blocksRaycasts = false, так что игре это не мешает.
+            _overlay.raycastTarget = true;
             UiKit.Stretch((RectTransform)go.transform);
 
             _cg                 = go.AddComponent<CanvasGroup>();
@@ -36,13 +40,24 @@ namespace CozyAnimalTown
             _cg.interactable    = false;
         }
 
-        /// <summary>Fade-in → action → fade-out. Игнорируется если уже играет.</summary>
-        public void Play(Action action) => StartCoroutine(DoTransition(action));
+        /// <summary>
+        /// Fade-in → action → fade-out. Повторный вызов во время перехода игнорируется.
+        ///
+        /// Флаг ставится СИНХРОННО, до StartCoroutine: корутина начинает выполняться
+        /// только на следующем шаге планировщика, и два клика в одном кадре успевали
+        /// зайти оба. А выполнять action немедленно при _busy (как было раньше) —
+        /// прямой путь к пропуску уровня: двойной тап по «Уровень N» за время fade-in
+        /// давал currentLevel += 1 дважды, второй раз уже из отложенного action.
+        /// </summary>
+        public void Play(Action action)
+        {
+            if (_busy) return;
+            _busy = true;
+            StartCoroutine(DoTransition(action));
+        }
 
         IEnumerator DoTransition(Action action)
         {
-            if (_busy) { action?.Invoke(); yield break; }
-            _busy              = true;
             _cg.blocksRaycasts = true;
 
             // finally гарантирует снятие блокировки ввода: если action бросит исключение,

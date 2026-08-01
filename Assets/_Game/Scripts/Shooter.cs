@@ -25,6 +25,7 @@ namespace CozyAnimalTown
         int nextSpecial = -1;      // спецшар в очереди (следующий выстрел)
         bool hasNext;
         bool firing;
+        Coroutine _fireCo;   // ссылка на летящий выстрел — чтобы оборвать при пересборке
         bool _gestureOverUI;   // текущее касание началось над кнопкой → не стреляем
         bool _gestureActive;   // нажатие началось в игровом поле (а не пока висел оверлей)
 
@@ -96,6 +97,22 @@ namespace CozyAnimalTown
         /// <summary>Сброс очереди при старте уровня — "next" мог быть цветом из прошлого
         /// уровня с другим colorCount. Спец-очередь тоже сбрасываем.</summary>
         public void ResetQueue() { hasNext = false; curSpecial = -1; nextSpecial = -1; }
+
+        /// <summary>
+        /// Обрывает летящий выстрел. Зовётся перед пересборкой доски.
+        ///
+        /// Без этого корутина Fire доигрывала уже на НОВОМ уровне: сначала
+        /// BreakObstacle сносила препятствия свежей доски по координатам из старой,
+        /// потом Place ставила шар старого цвета, потом OnResolved списывала выстрел
+        /// (35 -> 34) и могла сразу выдать победу или поражение. Ловится это легко:
+        /// пауза во время полёта (Time.timeScale = 0 замораживает снаряд) и «рестарт».
+        /// </summary>
+        public void CancelShot()
+        {
+            if (_fireCo != null) { StopCoroutine(_fireCo); _fireCo = null; }
+            _iceToBreak.Clear();
+            firing = false;
+        }
 
         /// <summary>Заряжает спецшар: сначала ТЕКУЩИЙ выстрел; если он уже занят —
         /// ставит в ОЧЕРЕДЬ (следующий выстрел). Возвращает false, если оба заняты
@@ -191,7 +208,7 @@ namespace CozyAnimalTown
                     AudioService.PlayShoot();
                     _iceToBreak.Clear();
                     _iceToBreak.AddRange(sim.IceHits);   // лёд, задетый рикошетом — разбить в полёте
-                    StartCoroutine(Fire(path, cell));
+                    _fireCo = StartCoroutine(Fire(path, cell));
                 }
             }
         }
