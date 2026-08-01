@@ -23,7 +23,7 @@ namespace CozyAnimalTown
             // Состояние на кадре: 8-й уровень (бомба открывается на 7-м), онбординг пройден,
             // радуга заряжена, бомба пустая — чтобы попал в кадр бейдж «▶ +3» (п.4.5.1).
             PlayerPrefs.SetInt("cat_save_ver", 5);
-            PlayerPrefs.SetInt("cat_level", 8);
+            PlayerPrefs.SetInt("cat_level", 1);
             PlayerPrefs.SetInt("cat_onboarded", 1);
             PlayerPrefs.SetInt("cat_seen_ice", 1);
             PlayerPrefs.SetInt("cat_seen_slime", 1);
