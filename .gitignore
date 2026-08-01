@@ -111,3 +111,8 @@ InitTestScene*.unity*
 
 # Unity Performance Testing artifacts (auto-generated into Resources/, would bloat the build)
 /[Aa]ssets/[Rr]esources/PerformanceTestRun*.json*
+
+# Промоматериалы: снимаются скриптом (Promo/README.md), в репозитории не нужны —
+# это 38 МБ бинарников, которые пересобираются одной командой.
+/Promo/screenshots/
+/Promo/video/

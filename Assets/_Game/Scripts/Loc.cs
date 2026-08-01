@@ -60,6 +60,13 @@ namespace CozyAnimalTown
 #else
             _raw = Application.systemLanguage == SystemLanguage.Russian ? "ru" : "en";
 #endif
+#if UNITY_EDITOR || DEVELOPMENT_BUILD || PROMO_CAPTURE
+            // Промоматериалы снимаются на обоих языках с одной машины, поэтому язык
+            // должен задаваться извне: -lang ru|en. В релизном WebGL-билде этого кода нет.
+            var argv = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < argv.Length - 1; i++)
+                if (argv[i] == "-lang") { _raw = argv[i + 1]; break; }
+#endif
             // ru + be/kk/uk получают русский интерфейс, остальной каталог — английский
             _ru = _raw == "ru" || _raw == "be" || _raw == "kk" || _raw == "uk";
         }

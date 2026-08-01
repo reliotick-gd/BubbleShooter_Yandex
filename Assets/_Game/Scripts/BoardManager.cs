@@ -119,6 +119,28 @@ namespace CozyAnimalTown
 
         public bool IsOccupied(Vector2Int c) => cells.ContainsKey(c);
 
+        /// <summary>Цвет шара в ячейке. Нужен съёмке промо: PromoCapture перебирает
+        /// направления выстрела и выбирает то, что реально соберёт группу.</summary>
+        public bool TryGetColor(Vector2Int c, out int color)
+        {
+            if (cells.TryGetValue(c, out var b) && b != null) { color = b.colorId; return true; }
+            color = -1;
+            return false;
+        }
+
+        /// <summary>Сколько одноцветных шаров вокруг ячейки. Считаем здесь, а не в
+        /// вызывающем коде, чтобы не дублировать гексовые смещения HexGrid: чётные и
+        /// нечётные ряды сдвинуты по-разному, и разъехавшаяся копия молча врала бы.</summary>
+        public int CountSameNeighbors(Vector2Int c, int color)
+        {
+            if (color < 0 || color >= GameConfig.RainbowId) return 0;
+            var nb = grid.Neighbors(c);
+            int n = 0;
+            for (int i = 0; i < HexGrid.NeighborCount; i++)
+                if (TryGetColor(nb[i], out int col) && col == color) n++;
+            return n;
+        }
+
         /// <summary>Самый нижний занятый ряд (-1 если доска пуста) — для детекта проигрыша по линии смерти.</summary>
         public int LowestRow()
         {

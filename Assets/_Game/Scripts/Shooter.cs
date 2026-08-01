@@ -142,6 +142,54 @@ namespace CozyAnimalTown
             nextIndicator.color = Color.white; nextIndicator.enabled = true;
         }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD || PROMO_CAPTURE
+        /// <summary>Цвет текущего снаряда — PromoCapture по нему подбирает выгодный выстрел.</summary>
+        public int DebugCurrentColor => curSpecial >= 0 ? curSpecial : current;
+
+        /// <summary>Куда придёт выстрел в этом направлении. Ничего не меняет.</summary>
+        public bool DebugPredict(Vector3 dir, out Vector2Int cell)
+        {
+            cell = default;
+            if (gm == null || cfg == null || sim == null) return false;
+            dir.z = 0f;
+            if (dir.y < 0.15f) dir.y = 0.15f;
+            dir.Normalize();
+            sim.Simulate(Origin, dir, out cell);
+            return true;
+        }
+
+        /// <summary>
+        /// Прицелиться и выстрелить программно — для съёмки промоматериалов.
+        /// Повторяет ветку released из Update, минуя InputService: синтезировать
+        /// нажатия Input System в плеере ненадёжно, а ломать боевой путь ввода ради
+        /// съёмки нельзя. В релизный WebGL-билд не компилируется.
+        /// </summary>
+        public bool DebugFire(Vector3 dir)
+        {
+            if (gm == null || gm.State != GameState.Aiming || firing) return false;
+            dir.z = 0f;
+            if (dir.y < 0.15f) dir.y = 0.15f;
+            dir.Normalize();
+            var path = sim.Simulate(Origin, dir, out var cell);
+            HideAim();
+            AudioService.PlayShoot();
+            _iceToBreak.Clear();
+            _iceToBreak.AddRange(sim.IceHits);
+            _fireCo = StartCoroutine(Fire(path, cell));
+            return true;
+        }
+
+        /// <summary>Показать пунктир прицела под нужным углом — для статичного кадра.</summary>
+        public void DebugAim(Vector3 dir)
+        {
+            if (gm == null || cfg == null || sim == null) return;
+            dir.z = 0f;
+            if (dir.y < 0.15f) dir.y = 0.15f;
+            dir.Normalize();
+            ShowAim(sim.Simulate(Origin, dir, out _));
+        }
+#endif
+
         public void HideProjectile()
         {
             if (proj) proj.enabled = false;
