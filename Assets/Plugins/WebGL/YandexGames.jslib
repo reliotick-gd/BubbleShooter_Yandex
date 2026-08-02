@@ -303,7 +303,15 @@ mergeInto(LibraryManager.library, {
           // всегда выходило пустым и подменялось на «Аноним». Берём оба варианта —
           // тогда результат не зависит от того, какой ветвью ушёл запрос.
           var pl  = e.player || e;
-          var raw = pl.publicName || e.publicName || '';
+          // scopePermissions.public_name — тот же признак, по которому имя берёт плагин
+          // в CozyWords и 5050. Если разрешения нет, publicName приходит пустым, но
+          // проверяем явно: так в консоли видно, что дело в разрешении, а не в поле.
+          var allowed = true;
+          try {
+            if (pl.scopePermissions && pl.scopePermissions.public_name)
+              allowed = pl.scopePermissions.public_name === 'allow';
+          } catch (ex) { }
+          var raw = allowed ? (pl.publicName || e.publicName || '') : '';
           var nm  = String(raw).trim();
           if (!nm) nm = anonName;
 
@@ -325,18 +333,48 @@ mergeInto(LibraryManager.library, {
       });
      } catch (ex) { console.warn('[YG] leaderboard load failed', ex); reply(errJson); }
     };
-    // Разрешение на персональные данные НЕ запрашиваем: на площадке так не принято,
-    // и попадание в таблицу от него не зависит. У кого имя открыто — оно придёт само,
-    // остальные показываются как «Аноним» (подставляется ниже, ещё в JS).
-    if (window.__ysdkPlayer && window.__ysdkPlayer.getUniqueID) {
-      try { myId = window.__ysdkPlayer.getUniqueID() || ''; } catch (e) { }
-      load();
-    } else if (window.ysdk.getPlayer) {
-      window.ysdk.getPlayer({ scopes: false }).then(function (p) {
-        window.__ysdkPlayer = p;
+    // ПОЧЕМУ ЗДЕСЬ getPlayer БЕЗ scopes: false — из-за этого имена и не показывались.
+    //
+    // Документация: «Если игрок запретил доступ к персональным данным, в ответе будет
+    // только идентификатор». scopes: false означает «не запрашивать разрешение вовсе»,
+    // то есть игрока НИКОГДА не спрашивают, разрешение никогда не выдаётся, и
+    // publicName у всех записей приходит пустым — включая собственную запись игрока.
+    // Ровно поэтому вся таблица показывала «Аноним» при живых очках.
+    //
+    // Хуже того, объект игрока кэшировался в window.__ysdkPlayer глобально, а первым
+    // его создавал облачный сейв на старте игры — с scopes: false. Лидерборд потом
+    // переиспользовал этот объект, так что даже правка запроса здесь ничего бы не
+    // изменила. Поэтому «разрешённый» игрок кэшируется ОТДЕЛЬНО.
+    //
+    // Спрашиваем только при открытии таблицы, а не на старте: это тот момент, когда имя
+    // игроку и нужно. Отказ не ломает ничего — таблица грузится, имена остаются
+    // анонимными, а uniqueID для подсветки своей строки берём запасным запросом.
+    var withScopes = function () {
+      window.ysdk.getPlayer().then(function (p) {
+        window.__ysdkPlayerAuth = p;
         try { myId = p.getUniqueID() || ''; } catch (e) { }
         load();
-      }, load);
+      }, function (e) {
+        console.warn('[YG] доступ к имени не выдан:', e);
+        // Игрок отказался или не авторизован — берём то, что есть, без имён.
+        if (window.__ysdkPlayer && window.__ysdkPlayer.getUniqueID) {
+          try { myId = window.__ysdkPlayer.getUniqueID() || ''; } catch (ex) { }
+          load();
+        } else {
+          window.ysdk.getPlayer({ scopes: false }).then(function (p2) {
+            window.__ysdkPlayer = p2;
+            try { myId = p2.getUniqueID() || ''; } catch (ex) { }
+            load();
+          }, load);
+        }
+      });
+    };
+
+    if (window.__ysdkPlayerAuth && window.__ysdkPlayerAuth.getUniqueID) {
+      try { myId = window.__ysdkPlayerAuth.getUniqueID() || ''; } catch (e) { }
+      load();
+    } else if (window.ysdk.getPlayer) {
+      withScopes();
     } else load();
   },
 
