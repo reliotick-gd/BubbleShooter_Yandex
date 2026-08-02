@@ -282,7 +282,11 @@ mergeInto(LibraryManager.library, {
       window.ysdk.getLeaderboards().then(function (lb) {
         return lb.getLeaderboardEntries(name, {
           includeUser: true,
-          quantityAround: 3,
+          // Просим с запасом вниз: под разделителем показываем игрока с двумя соседями
+          // сверху и снизу, а остальное из этой выдачи достаётся прокруткой — чтобы
+          // было видно, кто идёт следом. Сколько строк топа влезет без прокрутки,
+          // решает уже LeaderboardScreen по реальной высоте вьюпорта.
+          quantityAround: 10,
           quantityTop: 20
         });
       }).then(function (res) {

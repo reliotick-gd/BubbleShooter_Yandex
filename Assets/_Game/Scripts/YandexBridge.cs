@@ -322,19 +322,34 @@ namespace CozyAnimalTown
 #if UNITY_WEBGL && !UNITY_EDITOR
             YG_LoadLeaderboard(LeaderboardName);
 #else
-            // редактор: фейковые данные (топ + разрыв + окрестность игрока) — верстать экран без билда
-            Instance?.OnLeaderboardLoaded(
-                "{\"userRank\":4729,\"entries\":[" +
-                "{\"rank\":1,\"score\":12309162,\"name\":\"Виктор Кем\",\"avatar\":\"\",\"isUser\":false}," +
-                "{\"rank\":2,\"score\":9990652,\"name\":\"Довлет Атаев\",\"avatar\":\"\",\"isUser\":false}," +
-                "{\"rank\":3,\"score\":9918986,\"name\":\"Петрович\",\"avatar\":\"\",\"isUser\":false}," +
-                "{\"rank\":4,\"score\":9828492,\"name\":\"Николай И.\",\"avatar\":\"\",\"isUser\":false}," +
-                "{\"rank\":5,\"score\":9588890,\"name\":\"Iwuff Iwuffich\",\"avatar\":\"\",\"isUser\":false}," +
-                "{\"rank\":4726,\"score\":300,\"name\":\"Дмитрий Тимохин\",\"avatar\":\"\",\"isUser\":false}," +
-                "{\"rank\":4727,\"score\":294,\"name\":\"Min Sora\",\"avatar\":\"\",\"isUser\":false}," +
-                "{\"rank\":4728,\"score\":294,\"name\":\"александр м.\",\"avatar\":\"\",\"isUser\":false}," +
-                "{\"rank\":4729,\"score\":294,\"name\":\"Renat Protchenko\",\"avatar\":\"\",\"isUser\":true}" +
-                "]}");
+            // Редактор/промо: сценарий «100 игроков, свой ранг 50» — ровно то, что вернёт
+            // площадка с quantityTop: 20 / quantityAround: 3 / includeUser: true.
+            // Топ-20, разрыв (зигзаг), окрестность #47–#53, своя строка подсвечена.
+            // Очки в масштабе звёзд (максимум 90 = 30 уровней × 3), а не старых миллионов.
+            var top = new[] { "Виктор Кем", "Довлет Атаев", "Петрович", "Николай И.",
+                "Iwuff Iwuffich", "Мария Соколова", "Min Sora", "александр м.",
+                "Ольга К.", "Dmitry", "Санёк", "Полина", "JohnDoe", "Тимур Х.",
+                "Ксения", "Влад", "Ева", "Slavik", "Наталья П.", "Игорь" };
+            // Окрестность #40..#60 — как при quantityAround: 10.
+            // Своя строка ДОЛЖНА оказаться на индексе 10, иначе подсветка уедет на соседа.
+            var near = new[] { "Егор", "Мария", "Nick", "Алина", "Тимофей", "Ирина",
+                "Стас", "Кирилл Б.", "Anna", "Пётр", "Renat Protchenko", "Светлана",
+                "Olzhas", "дядя Женя", "Артём", "Юля", "Denis", "Лена", "Максим",
+                "Vika", "Роман" };
+            var sb = new System.Text.StringBuilder("{\"userRank\":50,\"entries\":[");
+            for (int i = 0; i < top.Length; i++)
+                sb.Append("{\"rank\":").Append(i + 1)
+                  .Append(",\"score\":").Append(87 - i * 2)
+                  .Append(",\"name\":\"").Append(top[i])
+                  .Append("\",\"avatar\":\"\",\"isUser\":false},");
+            for (int i = 0; i < near.Length; i++)
+                sb.Append("{\"rank\":").Append(40 + i)
+                  .Append(",\"score\":").Append(48 - i)
+                  .Append(",\"name\":\"").Append(near[i])
+                  .Append("\",\"avatar\":\"\",\"isUser\":").Append(40 + i == 50 ? "true" : "false")
+                  .Append(i < near.Length - 1 ? "}," : "}");
+            sb.Append("]}");
+            Instance?.OnLeaderboardLoaded(sb.ToString());
 #endif
         }
     }

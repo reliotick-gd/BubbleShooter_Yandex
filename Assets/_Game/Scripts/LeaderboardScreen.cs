@@ -37,6 +37,11 @@ namespace CozyAnimalTown
 
         Canvas canvas;
         RectTransform _content;
+        RectTransform _viewport;
+
+        // Сколько соседей игрока показываем по каждую сторону от его строки.
+        // Блок под разделителем = 2 + сам игрок + 2 = ровно 5 строк.
+        const int NearSide = 2;
         TMP_Text _status;
         Action _onClose;
         bool _closing;
@@ -119,6 +124,7 @@ namespace CozyAnimalTown
             vp.anchorMax = new Vector2(1f, 1f);
             vp.offsetMin = new Vector2(20f, 24f);
             vp.offsetMax = new Vector2(-20f, -156f);
+            _viewport = vp;
             vpGo.AddComponent<RectMask2D>();
             var vpImg = vpGo.AddComponent<Image>();      // невидимый, но ловит драг скролла
             vpImg.color = Color.clear;
@@ -165,17 +171,41 @@ namespace CozyAnimalTown
             }
             _status.gameObject.SetActive(false);
 
+            // Разрыв рангов делит ответ на две части: топ таблицы и окрестность игрока.
+            int gap = -1;
+            for (int i = 1; i < entries.Length; i++)
+                if (entries[i].rank > entries[i - 1].rank + 1) { gap = i; break; }
+
             float y = 0f;
-            for (int i = 0; i < entries.Length; i++)
+            if (gap < 0)
             {
-                // разрыв рангов (топ ↕ окрестность игрока) → зигзаг-разделитель
-                if (i > 0 && entries[i].rank > entries[i - 1].rank + 1)
-                {
-                    BuildZigzag(y);
-                    y -= ZigzagH;
-                }
-                BuildRow(entries[i], y);
-                y -= RowH;
+                // Игрок сам в топе — разрыва нет, рисуем подряд.
+                for (int i = 0; i < entries.Length; i++) { BuildRow(entries[i], y); y -= RowH; }
+            }
+            else
+            {
+                // Экран должен открываться так, чтобы строка игрока была видна СРАЗУ,
+                // без прокрутки. Поэтому число строк топа не фиксировано, а считается
+                // от реальной высоты вьюпорта: она заметно разная в портрете и в
+                // горизонтальной раскладке (модалка одна, а видимая часть — нет).
+                float vpH = _viewport != null ? _viewport.rect.height : 1400f;
+                int fitRows = Mathf.FloorToInt((vpH - ZigzagH) / RowH);
+                int nearVisible = NearSide * 2 + 1;                     // соседи + сам игрок
+                int topCount = Mathf.Clamp(fitRows - nearVisible, 3, gap);
+
+                for (int i = 0; i < topCount; i++) { BuildRow(entries[i], y); y -= RowH; }
+
+                BuildZigzag(y);
+                y -= ZigzagH;
+
+                // Ниже разделителя — от «игрок минус два» и ДО КОНЦА выдачи. Видно из
+                // них ровно пять, остальные достаются прокруткой: посмотреть, кто идёт
+                // следом за тобой, — единственное, ради чего этот экран вообще листают.
+                int from = gap;
+                for (int i = gap; i < entries.Length; i++)
+                    if (entries[i].rank >= data.userRank - NearSide) { from = i; break; }
+
+                for (int i = from; i < entries.Length; i++) { BuildRow(entries[i], y); y -= RowH; }
             }
 
             // гостю — подсказка, почему его нет в таблице
@@ -186,6 +216,10 @@ namespace CozyAnimalTown
             }
 
             _content.sizeDelta = new Vector2(0f, -y + 20f);
+            // Открываемся строго сверху. Без явного сброса ScrollRect оставлял список
+            // прокрученным на середину — в горизонтальной раскладке экран открывался
+            // где-то на 13-м месте.
+            _content.anchoredPosition = Vector2.zero;
         }
 
         /// <summary>Подсказка гостю. Без упоминания чужого товарного знака: модерация
