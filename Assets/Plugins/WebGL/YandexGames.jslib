@@ -295,8 +295,20 @@ mergeInto(LibraryManager.library, {
         // видно, что именно вернул SDK, и гадать не придётся.
         try {
           var f0 = (res && res.entries || [])[0];
-          if (f0) console.log('[YG] форма записи лидерборда:', Object.keys(f0),
-                              '| player:', f0.player ? Object.keys(f0.player) : 'нет');
+          if (f0) {
+            var p0 = f0.player || {};
+            // Печатаем и КОДЫ символов имени: имя может быть непустым, но состоять из
+            // глифов, которых нет в шрифте игры — на экране это выглядит как пустая
+            // строка, и по одному тексту в консоли причину не отличить.
+            var raw0 = String(p0.publicName || '');
+            var codes = [];
+            for (var ci = 0; ci < raw0.length && ci < 24; ci++) codes.push(raw0.charCodeAt(ci));
+            console.log('[YG] запись лидерборда:', Object.keys(f0),
+                        '| player:', Object.keys(p0),
+                        '| publicName:', JSON.stringify(raw0),
+                        '| коды:', codes.join(','),
+                        '| scopePermissions:', JSON.stringify(p0.scopePermissions || null));
+          }
         } catch (ex) { }
 
         var out = { userRank: (res && res.userRank) || 0, entries: [], error: false };

@@ -17,17 +17,77 @@
     }
     #unity-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
     #unity-canvas { width: 100%; height: 100%; touch-action: none; }
+    /* Экран загрузки. Всё рисуется CSS-ом: ни одной картинки и ни одного внешнего
+       ресурса — он показывается ДО того, как загрузился движок, и обязан появиться
+       мгновенно; плюс внешние домены всё равно запрещены требованиями площадки.
+       Палитра взята из игры (GameConfig): кремовый фон, тёплый коричневый текст,
+       пастельные шары тех же цветов, что и зверята на поле. */
     #loading-overlay {
-      position: fixed; inset: 0; background: #f5eedc;
+      position: fixed; inset: 0; background: #f5eedc; overflow: hidden;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      font-family: sans-serif; color: #5a3e2e; z-index: 10;
+      font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #5a3e2e; z-index: 10;
+      transition: opacity .45s ease;
     }
-    #loading-title { font-size: 30px; font-weight: bold; text-align: center; line-height: 1.3; }
+    /* Мягкие пятна фона — те же, что рисует CozyBackdrop в игре, чтобы переход
+       с экрана загрузки в игру не читался как смена оформления. */
+    #loading-overlay .blob {
+      position: absolute; border-radius: 50%; filter: blur(6px); opacity: .55;
+      animation: drift 18s ease-in-out infinite;
+    }
+    @keyframes drift {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50%      { transform: translate(18px, -26px) scale(1.06); }
+    }
+    #loading-card { position: relative; text-align: center; padding: 0 24px; }
+    #loading-title {
+      font-size: clamp(24px, 4.4vw, 38px); font-weight: 800; line-height: 1.25;
+      letter-spacing: .2px; text-shadow: 0 2px 0 rgba(255,255,255,.6);
+    }
+    /* Ряд прыгающих шаров — он же индикатор «идёт загрузка». Для бабл-шутера это
+       понятнее крутилки: сразу видно, из чего игра. */
+    #loading-balls { display: flex; gap: 14px; justify-content: center; margin: 26px 0 22px; }
+    #loading-balls i {
+      width: 30px; height: 30px; border-radius: 50%; display: block; position: relative;
+      box-shadow: inset 0 -5px 8px rgba(0,0,0,.13), 0 3px 6px rgba(90,62,46,.16);
+      animation: hop 1.15s ease-in-out infinite;
+    }
+    /* Блик — та же «конфетная» подача, что у шаров на поле. */
+    #loading-balls i::after {
+      content: ''; position: absolute; left: 21%; top: 13%;
+      width: 34%; height: 26%; border-radius: 50%;
+      background: rgba(255,255,255,.75); filter: blur(.5px);
+    }
+    @keyframes hop {
+      0%, 70%, 100% { transform: translateY(0) scale(1); }
+      35%           { transform: translateY(-17px) scale(1.06); }
+    }
     #loading-bar-bg {
-      width: 260px; height: 12px; background: #d9c8a8; border-radius: 6px; margin-top: 24px;
+      width: min(320px, 68vw); height: 14px; background: #e3d5b8;
+      border-radius: 8px; margin: 0 auto; overflow: hidden;
+      box-shadow: inset 0 2px 4px rgba(90,62,46,.16);
     }
-    #loading-bar { height: 100%; background: #e87a5a; border-radius: 6px; width: 0%; transition: width 0.2s; }
-    #loading-text { margin-top: 12px; font-size: 14px; }
+    #loading-bar {
+      height: 100%; width: 0%; border-radius: 8px;
+      background: linear-gradient(90deg, #f0a15c, #e87a5a);
+      transition: width .25s ease; position: relative;
+    }
+    /* Блик, пробегающий по заполненной части: полоса не выглядит замершей, даже
+       когда прогресс какое-то время стоит на месте. */
+    #loading-bar::after {
+      content: ''; position: absolute; inset: 0; border-radius: 8px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+      transform: translateX(-100%);
+      animation: sheen 1.6s linear infinite;
+    }
+    @keyframes sheen { to { transform: translateX(100%); } }
+    #loading-text { margin-top: 14px; font-size: 15px; opacity: .85; }
+    #loading-tip {
+      margin-top: 10px; font-size: 14px; opacity: 0; min-height: 20px;
+      color: #7d6350; transition: opacity .5s ease;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #loading-overlay .blob, #loading-balls i, #loading-bar::after { animation: none; }
+    }
   </style>
 
   <!-- ── Яндекс.Метрика ─────────────────────────────────────────────────────
@@ -56,9 +116,24 @@
 </head>
 <body>
   <div id="loading-overlay">
-    <div id="loading-title">🐾 {{{ PRODUCT_NAME }}}</div>
-    <div id="loading-bar-bg"><div id="loading-bar"></div></div>
-    <div id="loading-text">Загрузка…</div>
+    <div class="blob" style="width:38vmax;height:38vmax;left:-10vmax;top:-8vmax;background:#f7d9d9;animation-delay:-2s"></div>
+    <div class="blob" style="width:30vmax;height:30vmax;right:-8vmax;top:6vmax;background:#fbe7c8;animation-delay:-7s"></div>
+    <div class="blob" style="width:34vmax;height:34vmax;left:12vmax;bottom:-14vmax;background:#dcecd2;animation-delay:-11s"></div>
+    <div class="blob" style="width:22vmax;height:22vmax;right:6vmax;bottom:-6vmax;background:#f3e2f5;animation-delay:-4s"></div>
+
+    <div id="loading-card">
+      <div id="loading-title">🐾 {{{ PRODUCT_NAME }}}</div>
+      <div id="loading-balls">
+        <i style="background:#f2646e;animation-delay:0s"></i>
+        <i style="background:#f2b23e;animation-delay:.11s"></i>
+        <i style="background:#6bd46b;animation-delay:.22s"></i>
+        <i style="background:#7fc7f0;animation-delay:.33s"></i>
+        <i style="background:#a16be0;animation-delay:.44s"></i>
+      </div>
+      <div id="loading-bar-bg"><div id="loading-bar"></div></div>
+      <div id="loading-text">Загрузка…</div>
+      <div id="loading-tip"></div>
+    </div>
   </div>
 
   <div id="unity-container">
@@ -93,7 +168,37 @@
     function applyLoaderLang() {
       loadingTitle.textContent = ruLoader ? RU_TITLE : EN_TITLE;
       loadingText.textContent  = ruLoader ? 'Загрузка…' : 'Loading…';
+      showTip(0);
     }
+
+    // Подсказки по очереди, пока идёт загрузка: ожидание превращается в объяснение
+    // правил, и первый уровень начинается уже с пониманием, что делать.
+    var TIPS_RU = [
+      'Собери три одинаковых — они лопнут',
+      'Целься в стену — шар отскочит',
+      'Радуга подходит к любому цвету',
+      'Бомба сносит всё вокруг себя'
+    ];
+    var TIPS_EN = [
+      'Match three of a kind to pop them',
+      'Aim at the wall — the ball bounces',
+      'The rainbow fits any colour',
+      'The bomb clears everything around it'
+    ];
+    var tipEl = document.getElementById('loading-tip');
+    var tipIdx = 0;
+    function showTip(i) {
+      if (!tipEl) return;
+      var list = ruLoader ? TIPS_RU : TIPS_EN;
+      tipEl.textContent = list[i % list.length];
+      tipEl.style.opacity = '1';
+    }
+    setInterval(function () {
+      if (!tipEl || !loadingOverlay || loadingOverlay.style.display === 'none') return;
+      tipEl.style.opacity = '0';
+      setTimeout(function () { showTip(++tipIdx); }, 500);
+    }, 3200);
+
     applyLoaderLang();
 
     // маленькая обёртка событий Метрики со страницы (до/вне Unity)
@@ -177,7 +282,9 @@
           loadingBar.style.width = (100 * p) + '%';
         }).then(function (instance) {
           unityInstance = instance;
-          loadingOverlay.style.display = 'none';
+          // Гасим плавно: резкое исчезновение читалось как рывок на стыке с титулом.
+          loadingOverlay.style.opacity = '0';
+          setTimeout(function () { loadingOverlay.style.display = 'none'; }, 450);
           // метрика скорости загрузки движка (секунды, округлённо)
           ymEvent('game_loaded', { load_seconds: Math.round((performance.now() - t0) / 1000) });
           // LoadingAPI.ready() зовёт сам Unity (YandexBridge.GameReady), когда

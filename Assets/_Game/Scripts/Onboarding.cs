@@ -16,7 +16,26 @@ namespace CozyAnimalTown
         // геометрия в дизайн-координатах (снизу): пушка, высота руки, первая линия шаров.
         // TopY — где обрывается траектория и пропадает демо-шар (аккурат у нижнего ряда
         // шаров). XTo подобран так, чтобы прицел на TopY не выходил за игровую зону.
-        const float CannonY = 388f, HandY = 720f, TopY = 1050f, XFrom = -210f, XTo = 210f;
+        const float XFrom = -210f, XTo = 210f;
+
+        // Считаются от РЕАЛЬНОЙ геометрии доски, а не константами.
+        //
+        // Раньше здесь стояли CannonY = 388, HandY = 720, TopY = 1050 — отсчёт от низа
+        // колонки, подобранный под портрет, где её высота 1920. В широкой раскладке
+        // высота колонки 1180 (ColumnFitter.DesignHeight = 1080 / 0.915), и те же числа
+        // уводили руку с подсказкой на середину экрана, мимо доски.
+        float CannonY, HandY, TopY;
+
+        void ComputeLayout()
+        {
+            var cfg = gm.Config;
+            float half = ColumnFitter.DesignHeight * 0.5f;   // WorldToDesign даёт координаты от центра
+            CannonY = CameraFitter.WorldToDesign(new Vector3(0f, cfg.shooterY, 0f), cfg).y + half;
+            // Траектория обрывается у нижнего ряда шаров, а не у самого потолка.
+            TopY    = CameraFitter.WorldToDesign(
+                          new Vector3(0f, cfg.topRowY - cfg.CellSize * 0.5f, 0f), cfg).y + half;
+            HandY   = Mathf.Lerp(CannonY, TopY, 0.42f);
+        }
 
         static readonly Color Skin    = new Color(0.97f, 0.80f, 0.63f);
         static readonly Color Outline = new Color(0.34f, 0.26f, 0.20f);
@@ -43,8 +62,15 @@ namespace CozyAnimalTown
             cg = root.gameObject.AddComponent<CanvasGroup>();
             cg.alpha = 0f; cg.blocksRaycasts = false; cg.interactable = false;
 
-            // серая плашка ниже — чуть заходит на верхние шары, выделяется на белом поле
-            var tip = UiKit.Pill(root, new Vector2(0.5f, 1f), new Vector2(0f, -668f),
+            ComputeLayout();
+
+            // Плашка чуть выше конца траектории — заходит на нижний ряд шаров и хорошо
+            // видна на белом поле. Привязка к низу колонки, как и у остальной анимации:
+            // жёсткое смещение от верха ехало вместе с высотой колонки.
+            float tipY = Mathf.Min(TopY + 200f, ColumnFitter.DesignHeight - 90f);
+            // Pill ставит пивот в тот же угол, что и якорь, поэтому от центра, который мы
+            // посчитали, отнимаем половину высоты — иначе плашка встанет выше на 59.
+            var tip = UiKit.Pill(root, new Vector2(0.5f, 0f), new Vector2(0f, tipY - 59f),
                 new Vector2(860f, 118f), new Color(0.53f, 0.54f, 0.58f, 1f));
             var tt = UiKit.Label(tip.transform,
                 Loc.T("Drag to aim — release to shoot!", "Тяни — целься, отпусти — стреляй!"),
@@ -98,6 +124,7 @@ namespace CozyAnimalTown
             // Демо крутится в цикле до первого тапа игрока (первые 0.6с тап защищён).
             while (!_skip)
             {
+                ComputeLayout();   // экран мог повернуться посреди демонстрации
                 ball.gameObject.SetActive(false);
                 SetHand(XFrom, HandY);
                 yield return Phase(2.4f, t => { float x = Mathf.Lerp(XFrom, XTo, Mathf.SmoothStep(0f, 1f, t)); SetHand(x, HandY); DrawAim(x, HandY); });

@@ -40,7 +40,9 @@ namespace CozyAnimalTown
             int level = int.TryParse(Arg("-plevel"), out int lv) ? lv : 6;
             PlayerPrefs.SetInt("cat_save_ver", 5);
             PlayerPrefs.SetInt("cat_level", level);
-            PlayerPrefs.SetInt("cat_onboarded", 1);
+            // -onboard: снимаем кадр обучения (оно идёт только на 1 уровне и только
+            // если раньше его не проходили).
+            PlayerPrefs.SetInt("cat_onboarded", Arg("-onboard") != null ? 0 : 1);
             PlayerPrefs.SetInt("cat_seen_ice", 1);
             PlayerPrefs.SetInt("cat_seen_slime", 1);
             PlayerPrefs.SetInt("cat_seen_rock", 1);
@@ -159,6 +161,12 @@ namespace CozyAnimalTown
                     // Экран поражения — для проверки вёрстки кнопок «второго шанса».
                     // Состояние выставляем напрямую: доигрывать уровень до нуля выстрелов
                     // ради одного кадра долго и незачем.
+                    // Кадр обучения: ждём, пока рука доедет до середины жеста.
+                    case "onboard":
+                        yield return Wait(3.0f);
+                        yield return Capture("onboard", png: true);
+                        break;
+
                     case "lose":
                         SetPrivate(gm, "shotsLeft", 0);
                         SetPrivate(gm, "<State>k__BackingField", GameState.Lose);

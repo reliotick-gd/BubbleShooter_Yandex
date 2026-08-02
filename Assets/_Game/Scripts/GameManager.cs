@@ -108,6 +108,8 @@ namespace CozyAnimalTown
         public int  BubbleCount  => board != null ? board.PoppableCount : 0;
         public int  CurrentLevel => currentLevel;
         public LevelDef LevelDef => levelDef;
+        /// <summary>Геометрия поля — онбордингу, чтобы считать позиции от доски, а не от экрана.</summary>
+        public GameConfig Config => cfg;
         public bool LoseByOverflow => _loseByOverflow;
         public bool IsPaused     => _paused;
 

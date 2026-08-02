@@ -200,6 +200,44 @@ namespace CozyAnimalTown
                 new Vector2(0f, y), new Vector2(940f, 60f));
         }
 
+        /// <summary>
+        /// Имя игрока, гарантированно видимое на экране.
+        ///
+        /// ЗАЧЕМ. В таблице лидеров имена приходят какие угодно: латиница, кириллица,
+        /// китайский, армянский, эмодзи. Шрифт игры — Nunito, в нём есть только латиница
+        /// и кириллица, и запасного шрифта у нас больше нет (LiberationSans-фолбэк убран
+        /// ради веса билда). Символ без глифа TMP рисует НИЧЕМ — строка визуально пустая,
+        /// хотя формально непустая, поэтому старая проверка IsNullOrWhiteSpace её
+        /// пропускала. Именно так в таблице появлялась строка с аватаром, рангом и очками,
+        /// но без имени.
+        ///
+        /// Выкидываем символы, которых в шрифте нет; если после этого ничего не осталось —
+        /// показываем «Игрок». Пустого имени на экране быть не может ни при каком ответе SDK.
+        /// </summary>
+        string SafeName(string raw)
+        {
+            string fallback = Loc.T("Player", "Игрок");
+            if (string.IsNullOrWhiteSpace(raw)) return fallback;
+
+            raw = raw.Trim();
+            var font = DynamicFont.Asset;
+            if (font == null) return raw;
+
+            var sb = new System.Text.StringBuilder(raw.Length);
+            foreach (char c in raw)
+            {
+                // Пробел глифа не имеет, но ширину даёт — его оставляем.
+                if (c == ' ' || font.HasCharacter(c, true)) sb.Append(c);
+            }
+            string clean = sb.ToString().Trim();
+            if (clean.Length == 0)
+            {
+                Debug.LogWarning($"[LB] имя «{raw}» целиком без глифов в шрифте — показываем «{fallback}»");
+                return fallback;
+            }
+            return clean;
+        }
+
         void BuildRow(LbEntry e, float y)
         {
             var row = new GameObject("Row" + e.rank, typeof(RectTransform));
@@ -229,9 +267,7 @@ namespace CozyAnimalTown
                 new Vector2(78f, 0f), new Vector2(84f, 84f));
             holder.AddComponent<Mask>().showMaskGraphic = true;   // круглая маска для фото
 
-            // IsNullOrWhiteSpace, а не IsNullOrEmpty: SDK отдаёт имя пробелом, если игрок
-            // не открыл его, и строка из пробела рисуется как пустое место.
-            string nm = string.IsNullOrWhiteSpace(e.name) ? Loc.T("Player", "Игрок") : e.name.Trim();
+            string nm = SafeName(e.name);
             var letter = UiKit.Label(holder.transform, nm.Substring(0, 1).ToUpperInvariant(),
                 38, TextAnchor.MiddleCenter, Color.white);
             letter.fontStyle = FontStyles.Bold;
