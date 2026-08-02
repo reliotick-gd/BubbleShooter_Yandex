@@ -226,8 +226,15 @@ namespace CozyAnimalTown
             var sb = new System.Text.StringBuilder(raw.Length);
             foreach (char c in raw)
             {
+                // tryAddCharacter: true — ОБЯЗАТЕЛЬНО. Динамический шрифт растеризует
+                // глифы лениво, при генерации меша в конце кадра, и без этого флага
+                // HasCharacter смотрит только в таблицу уже нарисованного: буквы, которых
+                // ещё не было на экране (К, П, х...), считались отсутствующими и
+                // выгрызались из имён — «Виктор Кем» превращался в «Виктор ем».
+                // С флагом глиф добавляется в атлас прямо здесь, и false остаётся только
+                // у действительно отсутствующих в TTF символов (эмодзи, иероглифы).
                 // Пробел глифа не имеет, но ширину даёт — его оставляем.
-                if (c == ' ' || font.HasCharacter(c, true)) sb.Append(c);
+                if (c == ' ' || font.HasCharacter(c, false, true)) sb.Append(c);
             }
             string clean = sb.ToString().Trim();
             if (clean.Length == 0)
@@ -279,9 +286,16 @@ namespace CozyAnimalTown
             var name = UiKit.Label(row.transform, nm, 34, TextAnchor.MiddleLeft, TxtWhite);
             name.fontStyle        = FontStyles.Bold;
             name.textWrappingMode = TextWrappingModes.NoWrap;
-            name.overflowMode     = TextOverflowModes.Ellipsis;
+            // Truncate обрезает длинные имена по ширине. ВЫСОТА РЕКТА ОБЯЗАНА ВМЕЩАТЬ
+            // СТРОКУ: Truncate и Ellipsis режут построчно, и строка, не влезшая по
+            // ВЕРТИКАЛИ, выбрасывается целиком. Ровно из-за этого имена не рисовались
+            // вообще: высота строки Nunito 1.364 em — при кегле 34 это 46.4 px, а рект
+            // был 46 px. Не хватало 0.4 px, и лейбл всегда был пуст — при любых данных.
+            // Ранг (26pt в 36px, запас 0.5 px) и счёт (Overflow) при этом рисовались,
+            // что и уводило поиски в сторону данных и глифов.
+            name.overflowMode     = TextOverflowModes.Truncate;
             UiKit.Anchor(name.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                new Vector2(150f, 18f), new Vector2(560f, 46f));
+                new Vector2(150f, 18f), new Vector2(560f, 60f));
 
             var rank = UiKit.Label(row.transform, "#" + e.rank, 26, TextAnchor.MiddleLeft, TxtGrey);
             UiKit.Anchor(rank.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
