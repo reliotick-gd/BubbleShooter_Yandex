@@ -254,75 +254,59 @@ mergeInto(LibraryManager.library, {
   },
 
   // Топ-20 + окрестность игрока. Ответ → YandexBridge.OnLeaderboardLoaded как JSON
-  // {userRank, entries:[{rank,score,name,avatar,isUser}]}; ошибка → пустой список.
+  // {userRank, entries:[{rank,score,name,avatar,isUser}], error}.
+  //
+  // СДЕЛАНО ОДИН В ОДИН КАК В LEDOKU И SWEETMERGE, где имена показываются.
+  //
+  // Здесь дважды была одна и та же ошибка. Сначала мы читали имя только из e.player,
+  // потом полезли запрашивать разрешение на личные данные через getPlayer() без
+  // scopes: false — и то и другое мимо. Разрешение ни при чём: в Ledoku стоит тот же
+  // scopes: false, и имена там есть. Диалога согласия на имя/аватар площадка вообще
+  // не показывает — авторизованный игрок уже даёт эти данные игре.
+  //
+  // Единственное, чем мы отличались от рабочих проектов, — вызовом. Мы предпочитали
+  // новый ysdk.leaderboards.getEntries, а он в записях отдаёт не то, что старый
+  // getLeaderboards().getLeaderboardEntries(). Теперь зовём старый, как в Ledoku.
   YG_LoadLeaderboard: function (namePtr) {
     var name = UTF8ToString(namePtr);
     var reply = function (json) { SendMessage('YandexBridge', 'OnLeaderboardLoaded', json); };
     // Пустая таблица и НЕУДАВШАЯСЯ загрузка — разные вещи: в первом случае честно
-    // «стань первым», во втором надо сказать про ошибку и дать повторить. Раньше
-    // отсюда во всех трёх ситуациях (нет SDK, reject промиса, реально пусто) уходил
-    // один и тот же литерал, и при обрыве сети игрок видел заведомую неправду.
-    // Реально пустая таблица приезжает обычным путём — с entries: [] и без флага.
+    // «стань первым», во втором надо сказать про ошибку и дать повторить.
     var errJson = '{"userRank":0,"entries":[],"error":true}';
     if (!window.ysdk) { reply(errJson); return; }
 
-    // сперва uniqueID игрока — надёжнее для подсветки «это я», чем сравнение рангов
     var myId = '';
+
     var load = function () {
      try {
-      var opts = { quantityTop: 20, includeUser: true, quantityAround: 3 };
-      // актуальный API — ysdk.leaderboards.getEntries; старый — фолбэк
-      var promise = (window.ysdk.leaderboards && window.ysdk.leaderboards.getEntries)
-        ? window.ysdk.leaderboards.getEntries(name, opts)
-        : window.ysdk.getLeaderboards().then(function (lb) {
-            return lb.getLeaderboardEntries(name, opts);
-          });
-      promise.then(function (res) {
+      window.ysdk.getLeaderboards().then(function (lb) {
+        return lb.getLeaderboardEntries(name, {
+          includeUser: true,
+          quantityAround: 3,
+          quantityTop: 20
+        });
+      }).then(function (res) {
         var lang = '';
         try { lang = (window.ysdk.environment.i18n.lang || ''); } catch (ex) { }
-        // Тот же набор языков, что и в Loc.cs: русский интерфейс получают
-        // ru/be/kk/uk, значит и «Аноним» в таблице должен быть русским для всех них.
+        // Тот же набор языков, что и в Loc.cs: русский интерфейс получают ru/be/kk/uk.
         var anonName = /^(ru|be|kk|uk)/.test(String(lang)) ? 'Аноним' : 'Anonymous';
-        var out = { userRank: (res && res.userRank) || 0, entries: [] };
+
         // Разовый дамп формы записи: если имена опять не приедут, в консоли будет
-        // видно, что именно вернул SDK, и гадать по документации не придётся —
-        // она про расположение publicName противоречит сама себе.
+        // видно, что именно вернул SDK, и гадать не придётся.
         try {
-          var f = (res && res.entries || [])[0];
-          if (f) console.log('[YG] форма записи лидерборда:', Object.keys(f),
-                             '| player:', f.player ? Object.keys(f.player) : 'нет');
+          var f0 = (res && res.entries || [])[0];
+          if (f0) console.log('[YG] форма записи лидерборда:', Object.keys(f0),
+                              '| player:', f0.player ? Object.keys(f0.player) : 'нет');
         } catch (ex) { }
 
+        var out = { userRank: (res && res.userRank) || 0, entries: [], error: false };
         (res && res.entries || []).forEach(function (e) {
-          // Поля игрока читаем И с самой записи, И из вложенного player.
-          //
-          // Устаревший getLeaderboardEntries кладёт их в e.player — на нём построены
-          // Ledoku и SweetMerge, где имена показываются. Актуальный
-          // leaderboards.getEntries в части документации описан с полями прямо на
-          // записи. Мы звали новый API и читали только e.player, поэтому у нас имя
-          // всегда выходило пустым и подменялось на «Аноним». Берём оба варианта —
-          // тогда результат не зависит от того, какой ветвью ушёл запрос.
-          var pl  = e.player || e;
-          // scopePermissions.public_name — тот же признак, по которому имя берёт плагин
-          // в CozyWords и 5050. Если разрешения нет, publicName приходит пустым, но
-          // проверяем явно: так в консоли видно, что дело в разрешении, а не в поле.
-          var allowed = true;
-          try {
-            if (pl.scopePermissions && pl.scopePermissions.public_name)
-              allowed = pl.scopePermissions.public_name === 'allow';
-          } catch (ex) { }
-          var raw = allowed ? (pl.publicName || e.publicName || '') : '';
-          var nm  = String(raw).trim();
+          var pl = e.player || {};
+          var nm = String(pl.publicName || '').trim();
           if (!nm) nm = anonName;
-
           var av = '';
-          try {
-            var getAv = pl.getAvatarSrc || e.getAvatarSrc;
-            if (getAv) av = getAv.call(pl, 'small') || '';
-          } catch (ex) { }
-
-          var uid = pl.uniqueID || e.uniqueID || '';
-          var isUser = myId ? uid === myId
+          try { if (pl.getAvatarSrc) av = pl.getAvatarSrc('small') || ''; } catch (ex) { }
+          var isUser = myId ? (pl.uniqueID === myId)
                             : (out.userRank > 0 && e.rank === out.userRank);
           out.entries.push({ rank: e.rank, score: e.score, name: nm, avatar: av, isUser: isUser });
         });
@@ -333,53 +317,21 @@ mergeInto(LibraryManager.library, {
       });
      } catch (ex) { console.warn('[YG] leaderboard load failed', ex); reply(errJson); }
     };
-    // ПОЧЕМУ ЗДЕСЬ getPlayer БЕЗ scopes: false — из-за этого имена и не показывались.
-    //
-    // Документация: «Если игрок запретил доступ к персональным данным, в ответе будет
-    // только идентификатор». scopes: false означает «не запрашивать разрешение вовсе»,
-    // то есть игрока НИКОГДА не спрашивают, разрешение никогда не выдаётся, и
-    // publicName у всех записей приходит пустым — включая собственную запись игрока.
-    // Ровно поэтому вся таблица показывала «Аноним» при живых очках.
-    //
-    // Хуже того, объект игрока кэшировался в window.__ysdkPlayer глобально, а первым
-    // его создавал облачный сейв на старте игры — с scopes: false. Лидерборд потом
-    // переиспользовал этот объект, так что даже правка запроса здесь ничего бы не
-    // изменила. Поэтому «разрешённый» игрок кэшируется ОТДЕЛЬНО.
-    //
-    // Спрашиваем только при открытии таблицы, а не на старте: это тот момент, когда имя
-    // игроку и нужно. Отказ не ломает ничего — таблица грузится, имена остаются
-    // анонимными, а uniqueID для подсветки своей строки берём запасным запросом.
-    var withScopes = function () {
-      window.ysdk.getPlayer().then(function (p) {
-        window.__ysdkPlayerAuth = p;
-        try { myId = p.getUniqueID() || ''; } catch (e) { }
-        load();
-      }, function (e) {
-        console.warn('[YG] доступ к имени не выдан:', e);
-        // Игрок отказался или не авторизован — берём то, что есть, без имён.
-        if (window.__ysdkPlayer && window.__ysdkPlayer.getUniqueID) {
-          try { myId = window.__ysdkPlayer.getUniqueID() || ''; } catch (ex) { }
-          load();
-        } else {
-          window.ysdk.getPlayer({ scopes: false }).then(function (p2) {
-            window.__ysdkPlayer = p2;
-            try { myId = p2.getUniqueID() || ''; } catch (ex) { }
-            load();
-          }, load);
-        }
-      });
-    };
 
-    if (window.__ysdkPlayerAuth && window.__ysdkPlayerAuth.getUniqueID) {
-      try { myId = window.__ysdkPlayerAuth.getUniqueID() || ''; } catch (e) { }
+    // uniqueID нужен только для подсветки своей строки. scopes: false — как в Ledoku:
+    // разрешение не запрашиваем, площадка его и не спрашивает.
+    if (window.__ysdkPlayer && window.__ysdkPlayer.getUniqueID) {
+      try { myId = window.__ysdkPlayer.getUniqueID() || ''; } catch (e) { }
       load();
     } else if (window.ysdk.getPlayer) {
-      withScopes();
+      window.ysdk.getPlayer({ scopes: false }).then(function (p) {
+        window.__ysdkPlayer = p;
+        try { myId = p.getUniqueID() || ''; } catch (e) { }
+        load();
+      }, load);
     } else load();
   },
 
-  // Кросс-девайс сейв через player.setData (авторизованные — аккаунт Яндекса, гости —
-  // локальное хранилище платформы). flush=true: снапшот маленький, лимит 100/5мин не грозит.
   YG_SaveData: function (jsonPtr) {
     var json = UTF8ToString(jsonPtr);
     var send = function (p) {
